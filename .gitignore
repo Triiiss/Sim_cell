@@ -1,1 +1,11 @@
 /.junie/
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+
+# Maven build output
+target/
+
+# Local UML/image references (keep local)
+docs/
