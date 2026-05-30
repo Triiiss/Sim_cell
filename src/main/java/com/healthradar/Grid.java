@@ -1,5 +1,8 @@
 package com.healthradar;
 
+/**
+ * Stores the two-dimensional simulation map.
+ */
 public class Grid {
     private final int width;
     private final int height;

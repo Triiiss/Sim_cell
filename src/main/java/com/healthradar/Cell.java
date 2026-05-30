@@ -1,5 +1,8 @@
 package com.healthradar;
 
+/**
+ * Represents one position of the simulation grid.
+ */
 public class Cell {
     private CellState state;
     private int infectedSteps;
