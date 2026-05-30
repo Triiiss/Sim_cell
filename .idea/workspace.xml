@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="efe4083d-b9e1-402c-b5f8-814078451db0" name="Changes" comment="Initialize HealthRadar project with Maven structure, main class, and IntelliJ IDEA configuration files">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/healthradar/Main.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="21" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;khayem487&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Triiiss/Sim_cell.git&quot;,
+    &quot;accountId&quot;: &quot;a0978deb-4eeb-4a4a-86d8-1b99c59c167a&quot;
+  }
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.481257198921251" />
+      <entry key="MS500" value="4.469010028429084" />
+      <entry key="S2" value="7.374322511054395" />
+      <entry key="S5" value="9.187582734564783" />
+      <entry key="S10" value="12.051119982853663" />
+      <entry key="S30" value="18.202082920943468" />
+      <entry key="S60" value="22.151312392268014" />
+      <entry key="M2" value="26.157560675946055" />
+      <entry key="M5" value="30.74648667536943" />
+      <entry key="M10" value="33.05735797769098" />
+      <entry key="M15" value="33.958080892689765" />
+      <entry key="M30" value="34.936104534277" />
+      <entry key="H1" value="35.45674357161165" />
+      <entry key="H2" value="35.72546913038325" />
+      <entry key="H4" value="35.86199922826962" />
+      <entry key="D1" value="35.97689690891831" />
+      <entry key="W1" value="35.9966970259567" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.3706209492390762" />
+      <entry key="MS500" value="4.294669104503818" />
+      <entry key="S2" value="7.302814748537128" />
+      <entry key="S5" value="9.155204776990894" />
+      <entry key="S10" value="12.033441180550604" />
+      <entry key="S30" value="18.195349139162627" />
+      <entry key="S60" value="22.147660786367652" />
+      <entry key="M2" value="26.15548918646966" />
+      <entry key="M5" value="30.745462979388446" />
+      <entry key="M10" value="33.05678152787945" />
+      <entry key="M15" value="33.957678186066815" />
+      <entry key="M30" value="34.93589271470496" />
+      <entry key="H1" value="35.45663478026073" />
+      <entry key="H2" value="35.72541397848048" />
+      <entry key="H4" value="35.86197145860126" />
+      <entry key="D1" value="35.97689225333092" />
+      <entry key="W1" value="35.99669636019865" />
+    </decayedShown>
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="AISelfReview" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3EQDrlfa13FcgS85cbshiMEZrcI" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/khayem/IdeaProjects/Sim_cell",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="Sim_cell" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.24374.151" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.24374.151" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="efe4083d-b9e1-402c-b5f8-814078451db0" name="Changes" comment="" />
+      <created>1780102100266</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1780102100266</updated>
+      <workItem from="1780102101275" duration="1709000" />
+      <workItem from="1780103830190" duration="44000" />
+      <workItem from="1780103880126" duration="523000" />
+      <workItem from="1780104422592" duration="101000" />
+      <workItem from="1780104531320" duration="220000" />
+      <workItem from="1780104765446" duration="89000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="added project details and an idea &#10;&#10;added project idea and provided detailed overview of the HealthRadar simulation project, including disease types and simulation rules." />
+    <MESSAGE value="Initialize HealthRadar project with Maven structure, main class, and IntelliJ IDEA configuration files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Initialize HealthRadar project with Maven structure, main class, and IntelliJ IDEA configuration files" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
