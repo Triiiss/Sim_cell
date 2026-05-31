@@ -1,10 +1,10 @@
-# HealthRadar
+﻿# HealthRadar
 
 ## Project Overview
 
-HealthRadar is a Java project developed for the PGL end-of-year project in ING1-GI.
+HealthRadar is a Java / JavaFX project developed for the PGL end-of-year project in ING1-GI.
 
-The goal is to build a 2D cell simulation that shows how a disease can spread inside a simplified city. The project starts with a simple grid-based model, then can evolve step by step toward a more complete urban simulation.
+The goal is to simulate disease propagation in a 2D city grid. Cells represent urban zones, and people can later move inside the grid while carrying their own health state. This makes it possible to observe how diseases spread depending on population density, immunity, incubation, recovery, mortality, and local clusters.
 
 The project is based on the official theme: **2D cell simulation**.
 
@@ -12,90 +12,221 @@ The project is based on the official theme: **2D cell simulation**.
 
 ## Main Idea
 
-The first version of the project is based on a 2D grid.
+The target simulation is based on:
 
-Each cell represents one position in the simulated city. A cell can currently be:
+- a 2D grid where each cell can represent a place in the city;
+- several disease profiles with different infection behavior;
+- people moving between cells as agents;
+- cell risk computed from local population, infected people, density, and capacity;
+- disease-specific vaccines that can increase immunity only against targeted diseases;
+- a command-line simulation first, then a JavaFX interface on top of the same model.
+
+This repository currently keeps a lighter base so the team can agree on tasks before implementing the full model.
+
+---
+
+## Current Implemented Base
+
+The current code contains:
+
+- Maven project structure;
+- `CellState` with `HEALTHY`, `INFECTED`, and `RECOVERED`;
+- `Cell`, representing one position in the grid;
+- `Grid`, storing the 2D map;
+- `DiseaseType`, currently with `FLU` and `COVID_LIKE`;
+- `DiseaseProfile`, storing basic disease parameters;
+- `Main`, a small command-line entry point that loads and displays a disease profile.
+
+The advanced city/person simulation is the objective, not fully implemented in this lighter base yet.
+
+---
+
+## Target Core Model
+
+### City
+
+`City` should represent the full simulation world.
+
+It may contain:
+
+- a `Grid` of cells;
+- the list of available diseases;
+- global settings such as mask policy;
+- population statistics helpers.
+
+### Grid and Cell
+
+`Grid` stores the 2D map.
+
+Each `Cell` currently stores a simple cell state. Later, a cell may also contain:
+
+- a `ZoneType`, for example residential, metro, park, school, workplace, hospital;
+- a `PopulationDensity` multiplier;
+- a maximum capacity;
+- a list of `Person` objects currently inside the cell.
+
+If the number of alive people is greater than or equal to the cell capacity, the cell could become a cluster and local infection risk could increase.
+
+### Person
+
+`Person` would represent one inhabitant of the city.
+
+A person could have:
+
+- a name;
+- an age;
+- an immunity value;
+- a mask flag;
+- a health state;
+- an optional disease;
+- optional disease-specific vaccination records;
+- a counter for infected days;
+- a fragility score based on age and immunity.
+
+Possible person states:
 
 - `HEALTHY`
-- `INFECTED`
+- `INCUBATING`
+- `SICK`
 - `RECOVERED`
+- `DEAD`
 
-The simulation will later use these cells to model disease propagation. The first objective is to keep a clean and understandable base before adding more advanced rules.
+Dead people should not move, infect others, or count as active population.
+
+### DiseaseProfile
+
+`DiseaseProfile` stores the behavior of a disease.
+
+It currently includes:
+
+- disease type;
+- display name;
+- infection probability;
+- infection radius;
+- incubation duration;
+- infection duration;
+- recovery probability;
+- mortality probability.
+
+### Vaccination Model
+
+Vaccination should be modeled in a generic way, because the simulation may contain several diseases and several vaccines.
+
+Instead of adding fixed fields such as `vaccinatedAgainstCovid`, the project can later use a vaccine profile:
+
+- vaccine name;
+- target disease type;
+- immunity boost;
+- optional protection duration;
+- optional protection decay over time.
+
+A person may receive several vaccines. During infection risk calculation, only vaccines targeting the current disease should increase immunity.
+
+Example:
+
+- a person has base immunity `0.30`;
+- the person wears a mask, adding `0.15`;
+- the person received a Covid-like vaccine, adding `0.40` only against `COVID_LIKE`;
+- effective immunity against `COVID_LIKE` becomes `0.85`;
+- effective immunity against `FLU` stays `0.45`, because the Covid-like vaccine does not target Flu.
+
+This keeps the system extensible for future diseases and vaccines.
 
 ---
 
-## Current Base
+## Disease Types
 
-The current code contains the first technical base of the project:
-
-- `CellState`: possible states of a cell;
-- `Cell`: one position of the grid;
-- `Grid`: the 2D map containing cells;
-- `Main`: application entry point.
-
-This base is intentionally simple. It allows the team to agree on the structure before adding the simulation engine, disease parameters, user actions, or the JavaFX interface.
-
----
-
-## Merged Project Direction
-
-The final project can combine two ideas:
-
-- a simple cell-based simulation where disease spreads across a 2D grid;
-- a more urban interpretation where cells can later represent places in a city, such as residential areas, schools, hospitals, parks, or transport zones.
-
-For now, the repository keeps only the basic grid structure. The city and population behavior should be added later only after the team agrees on the tasks.
-
----
-
-## Planned Disease Model
-
-The application may support several disease profiles.
-
-Examples:
+The current implemented disease types are:
 
 ### Flu
 
-A first simple disease for testing the simulation.
+A common disease with medium propagation.
 
-Possible characteristics:
+Characteristics:
 
 - medium infection rate;
-- short duration;
-- low danger level.
+- short incubation;
+- short infection duration;
+- low mortality;
+- useful as the first test disease.
 
 ### Covid-like Virus
 
-A more contagious disease for comparing different spread behaviors.
+A stronger disease with wider propagation.
 
-Possible characteristics:
+Characteristics:
 
-- higher infection rate;
-- longer duration;
-- stronger propagation.
+- different infection rate;
+- longer incubation;
+- longer infection duration;
+- higher mortality than flu;
+- larger influence radius.
 
-Other diseases can be added later if needed.
+Future disease profiles may include stomach virus, lice, or custom diseases created by the user.
 
 ---
 
-## Planned Simulation Rules
+## Target Simulation Rules
 
-The simulation engine is not fully implemented yet in this light base.
+The full simulation should run step by step or day by day.
 
-The planned behavior is:
+At each simulated step:
 
-1. infected cells may contaminate nearby healthy cells;
-2. infected cells may recover after several steps;
-3. recovered cells may become resistant or immune depending on the chosen rules;
-4. statistics can be updated after each simulation step.
+1. alive people may move to a neighboring cell or stay in place;
+2. each healthy person checks the disease risk in their current cell;
+3. infection probability depends on disease infection rate, cell density, local risk, personal immunity, and disease-specific vaccines;
+4. incubating people become sick after the incubation period;
+5. sick people may recover, die, or remain sick;
+6. recovered people gain immunity, then immunity may slowly decrease over time;
+7. statistics are recalculated.
 
-A future simplified formula could be:
+A possible infection formula is:
 
 ```text
-infectionRisk = diseaseRate * neighborInfluence * protectionFactor
+infectionProbability = diseaseInfectionRate * cellDensity * cellRisk * (1 - effectiveImmunity)
 ```
 
-The exact rules should be defined by the team before implementation.
+`cellRisk` can be based on the number of contagious people in the cell. If the cell is a cluster, the risk can be increased. `effectiveImmunity` may include natural immunity, mask protection, and vaccine protection for the current disease.
+
+---
+
+## How to Run
+
+Compile with Java, then run the main class.
+
+```bash
+javac -d target/classes src/main/java/com/healthradar/*.java
+```
+
+Default disease:
+
+```bash
+java -cp target/classes com.healthradar.Main
+```
+
+Specific disease:
+
+```bash
+java -cp target/classes com.healthradar.Main COVID_LIKE
+```
+
+---
+
+## Planned JavaFX Application
+
+The future JavaFX application should use the same model and engine.
+
+Planned interactions:
+
+- create a normal city in manual mode;
+- change simulation parameters while the simulation is running;
+- pause, resume, step forward, and change speed;
+- click a cell to inspect zone information, people, diseases, and local risk;
+- click a person to inspect age, immunity, state, disease, and fragility;
+- click a disease to inspect its parameters;
+- show disease colors on the grid;
+- display clusters differently;
+- show live statistics and charts.
 
 ---
 
@@ -104,25 +235,13 @@ The exact rules should be defined by the team before implementation.
 Possible next steps:
 
 - implement the first simulation step logic;
-- add disease profiles;
 - add statistics;
-- add user actions on the grid;
-- add save/load later;
-- create a JavaFX interface after the model is stable;
-- optionally add city zones, population density, or person-based behavior in a later version.
-
----
-
-## How to Run
-
-Compile the project:
-
-```bash
-javac -d target/classes src/main/java/com/healthradar/*.java
-```
-
-Run the main class:
-
-```bash
-java -cp target/classes com.healthradar.Main
-```
+- support several diseases at the same time;
+- add user-created disease parameters;
+- add save/load of simulation states;
+- store a simulation history for preview and rewind;
+- implement `VaccineProfile` and vaccination records for disease-specific immunity;
+- add treatment actions;
+- improve urban movement with home, work, school, leisure, and transport locations;
+- add mutation as a bonus feature;
+- build the JavaFX interface after the model is stable.
