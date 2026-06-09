@@ -1,12 +1,11 @@
 package com.healthradar;
 
 /**
- * Health state for one moving person in the agent-based simulation.
+ * Health state of one person in the multi-scale simulation.
  */
 public enum PersonState {
     HEALTHY,
-    INCUBATING,
-    INFECTIOUS,
+    INFECTED,
     RECOVERED,
     DEAD
 }

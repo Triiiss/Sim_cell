@@ -5,6 +5,5 @@ package com.healthradar;
  */
 public enum DiseaseType {
     FLU,
-    COVID_LIKE,
-    UNKNOWN;
+    COVID_LIKE
 }

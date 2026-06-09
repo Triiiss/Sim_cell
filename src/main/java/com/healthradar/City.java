@@ -6,154 +6,234 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Holds the full city state used by the agent-based simulation.
+ * Complete simulation world: one city grid plus important places.
  */
 public class City {
-    private final int width;
-    private final int height;
-    private Cell[][] grid;
-    private boolean maskPolicyEnabled;
-    private List<Disease> diseases;
+    private final Grid cityGrid;
+    private final List<Place> places;
+    private final DiseaseProfile disease;
+    private final Random random;
+    private int currentDay;
 
-    public City(int width, int height,int populationInitial,int infectedPopulationInitial, boolean maskPolicyEnabled) {
-        if (width <= 0 || height <= 0){
-            throw new IllegalArgumentException("width and height have to be strickly positive");
-        }
-        if (populationInitial <= 0 || infectedPopulationInitial < 0 || populationInitial<infectedPopulationInitial){
-            throw new IllegalArgumentException("initial population has to be positive, and infected cannot be greater than the total amount of people");
-        }
-        this.width = width;
-        this.height = height;
-        initializeGrid(width, height,populationInitial,infectedPopulationInitial,maskPolicyEnabled);
-        this.maskPolicyEnabled = maskPolicyEnabled;
-        this.diseases = new ArrayList<>();
+    public City(Grid cityGrid, DiseaseProfile disease) {
+        this.cityGrid = cityGrid;
+        this.disease = disease;
+        this.places = new ArrayList<>();
+        this.random = new Random(42);
+        this.currentDay = 0;
     }
 
-    private void initializeGrid(int width, int height, int populationInitial, int infectedPopulationInitial, boolean maskPolicyEnabled){
-        Random rand = new Random();
-        
-        this.grid = new Cell[height][width];
+    public static City createDefault(DiseaseProfile disease) {
+        City city = new City(new Grid(9, 6), disease);
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int r = rand.nextInt(100);
-                ZoneType type = ZoneType.RESIDENTIAL;
-                if (r<15){
-                    type = ZoneType.METRO;
-                }
-                else if (r<39){
-                    type = ZoneType.PARK;
-                }
-                else if (r<59){
-                    type = ZoneType.WORKPLACE;
-                }
-                else if (r<64){
-                    type = ZoneType.SCHOOL;
-                }
-                else if (r<65){
-                    type = ZoneType.HOSPITAL;
-                }
-                grid[y][x] = new Cell(type,(int)(200*PopulationDensity.defaultDensity(type).getMultiplier()));
-            }
-        }
-        List<Person> allPeople = new ArrayList<>();
+        Place mall = new Place("Mall", PlaceType.MALL, new Grid(5, 3));
+        Place station = new Place("Train station", PlaceType.TRAIN_STATION, new Grid(4, 3));
+        Place school = new Place("School", PlaceType.SCHOOL, new Grid(4, 2));
+        Place hospital = new Place("Hospital", PlaceType.HOSPITAL, new Grid(3, 2));
+        Place park = new Place("Central park", PlaceType.PARK, null);
 
-        for (int i = 0; i < populationInitial; i++) {
-            int age = rand.nextInt(90) + 1;
-            int immunity = rand.nextInt(101);
-            boolean wearsMask = maskPolicyEnabled && rand.nextDouble() < 0.5;
+        city.addPlace(2, 2, mall);
+        city.addPlace(6, 1, station);
+        city.addPlace(1, 4, school);
+        city.addPlace(7, 4, hospital);
+        city.addPlace(4, 3, park);
 
-            Person p = new Person(
-                    "P" + i,
-                    age,
-                    immunity,
-                    wearsMask
-            );
+        city.seedCityPeople();
+        city.seedIndoorPeople(mall);
+        city.seedIndoorPeople(station);
+        city.seedIndoorPeople(school);
+        city.seedIndoorPeople(hospital);
 
-            allPeople.add(p);
+        return city;
+    }
+
+    public Grid getCityGrid() {
+        return cityGrid;
+    }
+
+    public List<Place> getPlaces() {
+        return Collections.unmodifiableList(places);
+    }
+
+    public int getCurrentDay() {
+        return currentDay;
+    }
+
+    public DiseaseProfile getDisease() {
+        return disease;
+    }
+
+    public Place getPlace(int index) {
+        if (index < 0 || index >= places.size()) {
+            return null;
         }
 
-        // 3. Infection initiale
-        for (int i = 0; i < infectedPopulationInitial && i < allPeople.size(); i++) {
-            Disease randomDisease = null;
-            if (diseases !=null) {
-                randomDisease = diseases.get(rand.nextInt(diseases.size()));
-            }
-
-            if (randomDisease != null) {
-                allPeople.get(i).infect(randomDisease);
-            }
-        }
-
-        // 4. Placement aléatoire dans la grille
-        for (Person p : allPeople) {
-
-            int x = rand.nextInt(width);
-            int y = rand.nextInt(height);
-
-            Cell cell = grid[y][x];
-
-            cell.addPerson(p);
-        }
+        return places.get(index);
     }
 
-    public int getWidth(){
-        return this.width;
-    }
+    public int getTotalPopulationCount() {
+        int count = cityGrid.getPopulationCount();
 
-    public int getHeight(){
-        return this.height;
-    }
-
-    public Cell getCell(int x, int y){
-        if (this.isInside(x,y)){
-            return grid[y][x];
-        }
-        return null;
-    }
-
-    public Cell[][] getGrid(){
-        return grid;
-    }
-
-    public boolean isMaskPolicyEnabled() {
-        return maskPolicyEnabled;
-    }
-
-    public List<Disease> getDiseases() {
-        return Collections.unmodifiableList(diseases);
-    }
-
-    public void addDisease(Disease disease) {
-        diseases.add(disease);
-    }
-
-
-    public int getPopulationCount() {
-        int count = 0;
-
-        for (int y = 0; y < this.height; y++) {
-            for (int x = 0; x < this.width; x++) {
-                count += grid[y][x].getPopulationCount();
+        for (Place place : places) {
+            if (place.hasIndoorGrid()) {
+                count += place.getIndoorGrid().getPopulationCount();
             }
         }
 
         return count;
     }
 
-    public int getSickPopulationCount() {
-        int count = 0;
+    public int getTotalInfectedPopulationCount() {
+        int count = cityGrid.getInfectedPopulationCount();
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                count += grid[y][x].getInfectedPopulationCount();
+        for (Place place : places) {
+            if (place.hasIndoorGrid()) {
+                count += place.getIndoorGrid().getInfectedPopulationCount();
             }
         }
 
         return count;
     }
 
-    public boolean isInside(int x, int y) {
-        return x >= 0 && x < this.width && y >= 0 && y < this.height;
+    public void advanceOneDay() {
+        currentDay++;
+        simulateGrid(cityGrid);
+
+        for (Place place : places) {
+            if (place.hasIndoorGrid()) {
+                simulateGrid(place.getIndoorGrid());
+            }
+        }
+    }
+
+    private void addPlace(int x, int y, Place place) {
+        cityGrid.getCell(x, y).setPlace(place);
+        places.add(place);
+    }
+
+    private void seedCityPeople() {
+        addPerson(cityGrid, 0, 0, new Person("City-P0"), true);
+        addPerson(cityGrid, 1, 0, new Person("City-P1"), false);
+        addPerson(cityGrid, 1, 1, new Person("City-P2"), false);
+        addPerson(cityGrid, 3, 2, new Person("City-P3"), false);
+        addPerson(cityGrid, 4, 3, new Person("City-P4"), false);
+        addPerson(cityGrid, 5, 3, new Person("City-P5"), false);
+        addPerson(cityGrid, 8, 5, new Person("City-P6"), false);
+    }
+
+    private void seedIndoorPeople(Place place) {
+        if (!place.hasIndoorGrid()) {
+            return;
+        }
+
+        Grid indoorGrid = place.getIndoorGrid();
+        addPerson(indoorGrid, 0, 0, new Person(place.getName() + "-P0"), true);
+        addPerson(indoorGrid, 1, 0, new Person(place.getName() + "-P1"), false);
+        addPerson(indoorGrid, 1, 1, new Person(place.getName() + "-P2"), false);
+
+        if (indoorGrid.isInside(2, 1)) {
+            addPerson(indoorGrid, 2, 1, new Person(place.getName() + "-P3"), false);
+        }
+    }
+
+    private void addPerson(Grid grid, int x, int y, Person person, boolean infected) {
+        if (infected) {
+            person.infect(disease);
+        }
+
+        grid.getCell(x, y).addPerson(person);
+    }
+
+    private void simulateGrid(Grid grid) {
+        movePeople(grid);
+        spreadInfections(grid);
+        advancePeople(grid);
+    }
+
+    private void movePeople(Grid grid) {
+        List<Move> moves = new ArrayList<>();
+
+        for (int y = 0; y < grid.getHeight(); y++) {
+            for (int x = 0; x < grid.getWidth(); x++) {
+                Cell cell = grid.getCell(x, y);
+
+                for (Person person : cell.getPeople()) {
+                    if (random.nextDouble() < 0.35) {
+                        int[][] directions = {
+                                {0, 0},
+                                {1, 0},
+                                {-1, 0},
+                                {0, 1},
+                                {0, -1}
+                        };
+                        int[] direction = directions[random.nextInt(directions.length)];
+                        int nextX = x + direction[0];
+                        int nextY = y + direction[1];
+
+                        if (grid.isInside(nextX, nextY)) {
+                            moves.add(new Move(person, cell, grid.getCell(nextX, nextY)));
+                        }
+                    }
+                }
+            }
+        }
+
+        for (Move move : moves) {
+            move.from.removePerson(move.person);
+            move.to.addPerson(move.person);
+        }
+    }
+
+    private void spreadInfections(Grid grid) {
+        List<Person> newlyInfected = new ArrayList<>();
+
+        for (int y = 0; y < grid.getHeight(); y++) {
+            for (int x = 0; x < grid.getWidth(); x++) {
+                Cell cell = grid.getCell(x, y);
+                int infectedCount = cell.getInfectedPopulationCount();
+
+                if (infectedCount == 0) {
+                    continue;
+                }
+
+                double risk = 1 - Math.pow(1 - disease.getInfectionProbability(), infectedCount);
+
+                for (Person person : cell.getPeople()) {
+                    if (person.getState() == PersonState.HEALTHY && random.nextDouble() < risk) {
+                        newlyInfected.add(person);
+                    }
+                }
+            }
+        }
+
+        for (Person person : newlyInfected) {
+            person.infect(disease);
+        }
+    }
+
+    private void advancePeople(Grid grid) {
+        for (int y = 0; y < grid.getHeight(); y++) {
+            for (int x = 0; x < grid.getWidth(); x++) {
+                Cell cell = grid.getCell(x, y);
+
+                for (Person person : cell.getPeople()) {
+                    person.advanceOneDay();
+                }
+
+                cell.refreshStateFromPeople();
+            }
+        }
+    }
+
+    private static class Move {
+        private final Person person;
+        private final Cell from;
+        private final Cell to;
+
+        private Move(Person person, Cell from, Cell to) {
+            this.person = person;
+            this.from = from;
+            this.to = to;
+        }
     }
 }

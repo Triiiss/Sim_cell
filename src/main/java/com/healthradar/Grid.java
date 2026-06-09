@@ -42,4 +42,32 @@ public class Grid {
     public Cell[][] getCells() {
         return cells;
     }
+
+    public boolean isInside(int x, int y) {
+        return x >= 0 && x < width && y >= 0 && y < height;
+    }
+
+    public int getPopulationCount() {
+        int count = 0;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                count += cells[y][x].getPopulationCount();
+            }
+        }
+
+        return count;
+    }
+
+    public int getInfectedPopulationCount() {
+        int count = 0;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                count += cells[y][x].getInfectedPopulationCount();
+            }
+        }
+
+        return count;
+    }
 }
