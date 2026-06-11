@@ -7,43 +7,35 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * Saves and loads the simulation state as a plain-text JSON file (.hrs).
+ * Saves and loads the simulation state as a binary .hrs file.
  *
- * <h2>Why JSON instead of Java Serialization?</h2>
- * <p>Java's built-in {@code ObjectOutputStream} encodes the full class
- * structure into the binary file. Any change to a serialised class
- * (adding/removing a field, renaming an enum constant) makes all existing
- * save files permanently unreadable with an {@code InvalidClassException}.</p>
- *
- * <p>This JSON-based serializer stores only the data values, not the class
- * metadata. Unknown fields are silently ignored on load, missing fields get
- * sensible defaults. Save files survive code changes.</p>
- *
- * <h2>Format</h2>
- * <pre>
- * {
- *   "version": 2,
- *   "stepCount": 42,
- *   "gridWidth": 60,
- *   "gridHeight": 45,
- *   "toroidal": false,
- *   "disease": { "name":"Influenza", "airborne":false, ... },
- *   "cells": [ { "r":0,"c":0,"state":"SUSCEPTIBLE","stateAge":0,
- *                "resistance":0.21,"moveProbability":0.28,"masked":false }, ... ],
- *   "history": [ { "step":0,"susceptible":77,...}, ... ]
- * }
- * </pre>
+ * <p>The assignment requires binary persistence. New saves use Java object
+ * serialization, while loading still accepts the older JSON text format used
+ * by previous development builds.</p>
  *
  * @author HealthRadar Team
- * @version 2.0
+ * @version 3.0
  */
 public class SimulationSerializer {
 
-    /** File format version written to every save. */
+    /** Legacy JSON format version. New saves use Java binary serialization. */
     private static final int FORMAT_VERSION = 2;
 
     /** Private constructor — utility class. */
     private SimulationSerializer() {}
+
+    /**
+     * Saves the given engine to a binary file.
+     *
+     * @param engine the engine to save
+     * @param path   destination file (will be created or overwritten)
+     * @throws IOException if the file cannot be written
+     */
+    public static void save(SimulationEngine engine, Path path) throws IOException {
+        try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(path))) {
+            out.writeObject(engine);
+        }
+    }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -54,7 +46,7 @@ public class SimulationSerializer {
      * @param path   destination file (will be created or overwritten)
      * @throws IOException if the file cannot be written
      */
-    public static void save(SimulationEngine engine, Path path) throws IOException {
+    private static void saveLegacyJson(SimulationEngine engine, Path path) throws IOException {
         Grid    grid    = engine.getGrid();
         Disease disease = grid.getDisease();
 
@@ -128,6 +120,34 @@ public class SimulationSerializer {
     }
 
     /**
+     * Loads a simulation from a binary .hrs file.
+     *
+     * <p>If the file is not a Java serialized stream, the loader falls back to
+     * the older JSON text format used by previous development builds.</p>
+     *
+     * @param path source file path
+     * @return a fully restored {@link SimulationEngine}
+     * @throws IOException if the file cannot be read or parsed
+     */
+    public static SimulationEngine load(Path path) throws IOException {
+        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(path))) {
+            Object saved = in.readObject();
+            if (saved instanceof SimulationEngine engine) {
+                if (engine.getHistory().isEmpty()) engine.recordCurrentStats();
+                return engine;
+            }
+            if (saved instanceof Grid grid) {
+                return new SimulationEngine(grid);
+            }
+            throw new IOException("Unsupported save file content: " + saved.getClass().getName());
+        } catch (StreamCorruptedException | OptionalDataException e) {
+            return loadLegacyJson(path);
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Unsupported class found in save file.", e);
+        }
+    }
+
+    /**
      * Loads a simulation from a JSON text file.
      * Silently ignores unknown fields; missing fields receive defaults.
      *
@@ -135,7 +155,7 @@ public class SimulationSerializer {
      * @return a fully restored {@link SimulationEngine}
      * @throws IOException if the file cannot be read or parsed
      */
-    public static SimulationEngine load(Path path) throws IOException {
+    private static SimulationEngine loadLegacyJson(Path path) throws IOException {
         String json = Files.readString(path);
         JsonObj root = parseObj(json, 0, json.length());
 

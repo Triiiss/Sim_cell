@@ -65,7 +65,7 @@ For HealthRadar, the chosen context is disease propagation in a city:
   - speed control.
 - Live statistics and chart display.
 - Export of statistics charts to PNG.
-- Save/load of simulation state in `.hrs` files.
+- Binary save/load of simulation state in `.hrs` files.
 
 ## Project Structure
 
@@ -148,17 +148,19 @@ The Makefile was written for a Linux OpenJFX installation and assumes:
 On Windows, Maven is the safer way to compile and run the project because it
 declares JavaFX as a normal dependency.
 
+## Save Format
+
+New `.hrs` files are binary Java-serialized simulation snapshots, matching the
+assignment requirement for binary persistence. The loader also keeps a fallback
+for older JSON `.hrs` files created by previous development versions.
+
 ## Known Gaps
 
 These points still need cleanup before final delivery:
 
 - README and report must stay aligned with the final implementation.
 - Generated Javadoc should be committed before delivery.
-- Save/load should be checked against the assignment requirement for binary
-  persistence.
-- Zone types should be verified during save/load.
 - Some statistics requested by the assignment, such as progression trends and
   property statistics, are still basic.
 - The team must be able to compile and launch the project from the command
   line during the defense.
-
