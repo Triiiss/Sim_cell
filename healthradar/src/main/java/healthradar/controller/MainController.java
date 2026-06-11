@@ -318,22 +318,37 @@ public class MainController {
      * @return the constructed VBox sidebar
      */
     private VBox buildSidebar() {
-        VBox box = new VBox(10);
-        box.setPadding(new Insets(10, 20, 10, 10));
+        VBox box = new VBox(12);
+        box.setPadding(new Insets(12, 18, 12, 12));
         box.setPrefWidth(350);
         box.setMaxWidth(Double.MAX_VALUE);
-        box.setStyle("-fx-background-color: #16213e;");
+        box.setStyle("-fx-background-color:#101827;");
+
+        Label title = new Label("HealthRadar");
+        title.setTextFill(Color.WHITE);
+        title.setFont(Font.font("System Bold", 19));
+
+        Label subtitle = new Label("Simulation controls");
+        subtitle.setTextFill(Color.rgb(140, 165, 190));
+        subtitle.setFont(Font.font(11));
+
+        VBox header = new VBox(1, title, subtitle);
+        header.setPadding(new Insets(0, 0, 4, 0));
+        box.getChildren().add(header);
 
         box.getChildren().add(buildCellInspector());
         box.getChildren().add(separator());
 
         // ── Stats panel ───────────────────────────────────────────────────────
-        box.getChildren().add(statsPanel);
+        VBox statsBox = sidebarSectionBox();
+        statsBox.getChildren().add(statsPanel);
+        box.getChildren().add(sectionPane("Live statistics", statsBox, true));
 
         box.getChildren().add(separator());
 
         // ── Disease parameters ────────────────────────────────────────────────
-        box.getChildren().add(sectionLabel("Disease Parameters"));
+        VBox diseaseBox = sidebarSectionBox();
+        diseaseBox.getChildren().add(sectionLabel("Disease Parameters"));
 
         airborneCheck = new CheckBox("Airborne transmission");
         airborneCheck.setTextFill(Color.WHITE);
@@ -341,17 +356,17 @@ public class MainController {
         airborneCheck.setOnAction(e -> applyDiseaseParams());
 
         transmissionSlider = labelledSlider("Transmission rate  (0.01–1.0)",
-                0.01, 1.0, currentDisease.getTransmissionRate(), box);
+                0.01, 1.0, currentDisease.getTransmissionRate(), diseaseBox);
         mortalitySlider    = labelledSlider("Mortality rate     (0.0-0.5)",
-                0.0,  0.5, currentDisease.getMortalityRate(),    box);
+                0.0,  0.5, currentDisease.getMortalityRate(),    diseaseBox);
         radiusSlider       = labelledSlider("Airborne radius    (1-10 cells)",
-                1, 10, currentDisease.getTransmissionRadius(),   box);
+                1, 10, currentDisease.getTransmissionRadius(),   diseaseBox);
         incubationSlider   = labelledSlider("Incubation steps   (1-30)",
-                1, 30, currentDisease.getIncubationPeriod(),     box);
+                1, 30, currentDisease.getIncubationPeriod(),     diseaseBox);
         infectionDurSlider = labelledSlider("Infection steps    (1-60)",
-                1, 60, currentDisease.getInfectionDuration(),    box);
+                1, 60, currentDisease.getInfectionDuration(),    diseaseBox);
         immunitySlider     = labelledSlider("Immunity steps     (1-120)",
-                1, 120, currentDisease.getImmunityDuration(),    box);
+                1, 120, currentDisease.getImmunityDuration(),    diseaseBox);
 
         transmissionSlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         mortalitySlider   .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
@@ -360,54 +375,63 @@ public class MainController {
         infectionDurSlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         immunitySlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
 
-        box.getChildren().add(sectionLabel("Vaccine & Mask Parameters"));
+        diseaseBox.getChildren().add(airborneCheck);
+        box.getChildren().add(sectionPane("Disease", diseaseBox, true));
+
+        VBox protectionBox = sidebarSectionBox();
+        protectionBox.getChildren().add(sectionLabel("Vaccine & Mask Parameters"));
         vaccineEfficacySlider = labelledSlider("Vaccine efficacy    (0.0-1.0)",
-                0.0, 1.0, currentDisease.getVaccineEfficacy(), box);
+                0.0, 1.0, currentDisease.getVaccineEfficacy(), protectionBox);
         vaccineImmunitySlider = labelledSlider("Vaccine immunity steps (1-500)",
-                1, 500, currentDisease.getVaccineImmunityDuration(), box);
+                1, 500, currentDisease.getVaccineImmunityDuration(), protectionBox);
         maskInwardSlider  = labelledSlider("Mask inward efficacy  (0.0-1.0)",
-                0.0, 1.0, currentDisease.getMaskInwardEfficacy(), box);
+                0.0, 1.0, currentDisease.getMaskInwardEfficacy(), protectionBox);
         maskOutwardSlider = labelledSlider("Mask outward efficacy (0.0-1.0)",
-                0.0, 1.0, currentDisease.getMaskOutwardEfficacy(), box);
+                0.0, 1.0, currentDisease.getMaskOutwardEfficacy(), protectionBox);
 
         vaccineEfficacySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         vaccineImmunitySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         maskInwardSlider     .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         maskOutwardSlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
 
-        box.getChildren().add(airborneCheck);
+        box.getChildren().add(sectionPane("Protection", protectionBox, true));
 
         box.getChildren().add(separator());
 
         // ── Random populate ───────────────────────────────────────────────────
-        box.getChildren().add(sectionLabel("Random Populate"));
+        VBox populationBox = sidebarSectionBox();
+        populationBox.getChildren().add(sectionLabel("Random Populate"));
         Label popNote = new Label("% of total grid cells");
         popNote.setTextFill(Color.GRAY);
         popNote.setFont(Font.font(10));
-        box.getChildren().add(popNote);
+        populationBox.getChildren().add(popNote);
 
-        susceptibleSlider = labelledSlider("Susceptible % of grid", 0, 100, 40, box);
-        infectedSlider    = labelledSlider("Infected %    of grid", 0, 100,  5, box);
+        susceptibleSlider = labelledSlider("Susceptible % of grid", 0, 100, 40, populationBox);
+        infectedSlider    = labelledSlider("Infected %    of grid", 0, 100,  5, populationBox);
 
-        Button populateBtn = styledButton("🌐 Random Populate", "#16a085");
+        Button populateBtn = styledButton("Random Populate", "#16a085");
         populateBtn.setMaxWidth(Double.MAX_VALUE);
         populateBtn.setOnAction(e -> randomPopulate());
 
-        Button clearBtn = styledButton("🗑 Clear Grid", "#c0392b");
+        Button clearBtn = styledButton("Clear Grid", "#c0392b");
         clearBtn.setMaxWidth(Double.MAX_VALUE);
         clearBtn.setOnAction(e -> {
             grid.clear();
             engine = new SimulationEngine(grid);
             statsPanel.setEngine(engine);
+            clearCellInspector();
             gridView.redraw();
             setStatus("Grid cleared.");
         });
 
-        box.getChildren().addAll(populateBtn, clearBtn);
+        populationBox.getChildren().addAll(populateBtn, clearBtn);
+        box.getChildren().add(sectionPane("Population", populationBox, true));
 
         box.getChildren().add(separator());
 
         // ── Toroidal toggle ───────────────────────────────────────────────────
+        VBox optionsBox = sidebarSectionBox();
+        optionsBox.getChildren().add(sectionLabel("Grid Options"));
         CheckBox toroidalCheck = new CheckBox("Toroidal topology (wrap edges)");
         toroidalCheck.setTextFill(Color.WHITE);
         toroidalCheck.setFont(Font.font(12));
@@ -416,9 +440,30 @@ public class MainController {
             grid.setToroidal(toroidalCheck.isSelected());
             setStatus("Topology: " + (grid.isToroidal() ? "Toroidal" : "Bounded"));
         });
-        box.getChildren().add(toroidalCheck);
+        optionsBox.getChildren().add(toroidalCheck);
+        box.getChildren().add(sectionPane("Options", optionsBox, false));
 
         return box;
+    }
+
+    private VBox sidebarSectionBox() {
+        VBox section = new VBox(8);
+        section.setPadding(new Insets(10));
+        section.setStyle("-fx-background-color:#0f1b2f; -fx-background-radius:6;");
+        return section;
+    }
+
+    private TitledPane sectionPane(String title, VBox content, boolean expanded) {
+        TitledPane pane = new TitledPane(title, content);
+        pane.setExpanded(expanded);
+        pane.setAnimated(true);
+        pane.setStyle(
+                "-fx-text-fill:white;" +
+                "-fx-font-weight:bold;" +
+                "-fx-background-color:#0f1b2f;" +
+                "-fx-background-radius:6;"
+        );
+        return pane;
     }
 
     private VBox buildCellInspector() {
