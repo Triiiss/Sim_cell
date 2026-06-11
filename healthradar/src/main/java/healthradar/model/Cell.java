@@ -44,6 +44,14 @@ public class Cell implements Serializable {
      */
     private double moveProbability;
 
+    /**
+     * True if this person is wearing a mask.
+     * The mask flag is independent of the cell state — a SUSCEPTIBLE, INFECTED,
+     * or VACCINATED cell can all wear a mask simultaneously.
+     * It is set via {@link #setMasked(boolean)} and persists until removed.
+     */
+    private boolean masked = false;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     /**
@@ -99,6 +107,11 @@ public class Cell implements Serializable {
     /** @return probability per step of attempting to move */
     public double getMoveProbability() { return moveProbability; }
 
+    /** @param p new move probability, clamped to [0.1, 0.4] */
+    public void setMoveProbability(double p) {
+        this.moveProbability = Math.max(0.1, Math.min(0.4, p));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /** @return true if the cell is occupied by a person (not EMPTY or DEAD) */
@@ -120,6 +133,12 @@ public class Cell implements Serializable {
         return baseRate * (1.0 - resistance);
     }
 
+    /** @return true if this person is wearing a mask */
+    public boolean isMasked() { return masked; }
+
+    /** @param masked true to equip a mask on this person */
+    public void setMasked(boolean masked) { this.masked = masked; }
+
     /**
      * Produces a deep copy of this cell. Used by the double-buffering mechanism
      * in the {@link Grid} to compute the next generation without aliasing.
@@ -132,6 +151,7 @@ public class Cell implements Serializable {
         c.stateAge = this.stateAge;
         c.resistance = this.resistance;
         c.moveProbability = this.moveProbability;
+        c.masked = this.masked;
         return c;
     }
 

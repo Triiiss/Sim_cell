@@ -197,10 +197,27 @@ public class Grid implements Serializable {
      *
      * @param grid the working copy of the grid
      */
+    /**
+     * Phase 2 – infected (and optionally exposed) cells try to transmit to
+     * susceptible, vaccinated, and masked cells within their influence radius.
+     *
+     * <h3>Vaccine protection (inward)</h3>
+     * <p>For VACCINATED targets: effective probability = baseRate
+     * × (1 − vaccineEfficacy) × (1 − resistance).</p>
+     *
+     * <h3>Mask protection</h3>
+     * <ul>
+     *   <li><b>Outward (source control)</b>: if the spreader is MASKED and INFECTED,
+     *       its spread rate is reduced by (1 − maskOutwardEfficacy).</li>
+     *   <li><b>Inward</b>: if the target is MASKED, the effective probability is
+     *       further multiplied by (1 − maskInwardEfficacy).</li>
+     * </ul>
+     *
+     * @param grid the working copy of the grid
+     */
     private void infectionPhase(Cell[][] grid) {
-        // Snapshot which cells can spread this tick (avoids reading cells
-        // that were just infected during this same phase)
-        // spreader[r][c] = effective transmission rate (0 = not a spreader)
+        // Snapshot: effective outward transmission rate per spreader cell.
+        // MASKED infected cells emit at reduced rate (source control).
         double[][] spreadRate = new double[height][width];
         for (int r = 0; r < height; r++) {
             for (int c = 0; c < width; c++) {
@@ -210,9 +227,17 @@ public class Grid implements Serializable {
                 } else if (st == CellState.EXPOSED && disease.isContagiousInExposed()) {
                     spreadRate[r][c] = disease.getExposedTransmissionRate();
                 }
-                // else 0.0 — not a spreader
+                // else 0.0 — not a spreader (EMPTY, SUSC, VACC, MASKED-healthy, etc.)
             }
         }
+
+        // Note: a MASKED person who is also INFECTED is tracked as INFECTED in state,
+        // but the mask flag is stored in the Cell.  We apply outward reduction here.
+        // (Mask flag is checked via cell.isMasked())
+        for (int r = 0; r < height; r++)
+            for (int c = 0; c < width; c++)
+                if (spreadRate[r][c] > 0 && grid[r][c].isMasked())
+                    spreadRate[r][c] *= (1.0 - disease.getMaskOutwardEfficacy());
 
         int radius = disease.isAirborne() ? disease.getTransmissionRadius() : 1;
 
@@ -223,7 +248,6 @@ public class Grid implements Serializable {
                 for (int dr = -radius; dr <= radius; dr++) {
                     for (int dc = -radius; dc <= radius; dc++) {
                         if (dr == 0 && dc == 0) continue;
-                        // Euclidean distance check for airborne
                         if (disease.isAirborne() && Math.sqrt(dr*dr + dc*dc) > radius) continue;
 
                         int nr = r + dr;
@@ -232,9 +256,24 @@ public class Grid implements Serializable {
                         else if (!inBounds(nr, nc)) continue;
 
                         Cell target = grid[nr][nc];
-                        if (target.getState() != CellState.SUSCEPTIBLE) continue;
+                        CellState tst = target.getState();
 
-                        double prob = target.effectiveInfectionProbability(spreadRate[r][c]);
+                        // Only susceptible, vaccinated, and masked-healthy can be exposed
+                        if (tst != CellState.SUSCEPTIBLE
+                         && tst != CellState.VACCINATED) continue;
+
+                        // Base probability
+                        double baseRate = spreadRate[r][c];
+
+                        // Vaccine inward protection
+                        if (tst == CellState.VACCINATED)
+                            baseRate *= (1.0 - disease.getVaccineEfficacy());
+
+                        // Mask inward protection (flag on any state)
+                        if (target.isMasked())
+                            baseRate *= (1.0 - disease.getMaskInwardEfficacy());
+
+                        double prob = target.effectiveInfectionProbability(baseRate);
                         if (rng.nextDouble() < prob) {
                             target.setState(CellState.EXPOSED);
                             target.resetStateAge();
@@ -281,7 +320,16 @@ public class Grid implements Serializable {
                             cell.resetStateAge();
                         }
                     }
-                    default -> { /* EMPTY, DEAD, SUSCEPTIBLE – no progression */ }
+                    case VACCINATED -> {
+                        cell.incrementStateAge();
+                        if (cell.getStateAge() >= disease.getVaccineImmunityDuration()) {
+                            cell.setState(CellState.SUSCEPTIBLE);
+                            cell.resetStateAge();
+                        }
+                    }
+                    // MASKED stays masked indefinitely (user-controlled)
+                    // EMPTY, DEAD, SUSCEPTIBLE – no progression
+                    default -> { }
                 }
             }
         }

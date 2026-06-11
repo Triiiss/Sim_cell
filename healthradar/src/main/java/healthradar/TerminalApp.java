@@ -29,6 +29,7 @@ public class TerminalApp {
 
     private static final String BG_EMPTY       = "\u001B[48;5;235m";
     private static final String BG_SUSCEPTIBLE = "\u001B[48;5;33m";
+    private static final String BG_VACCINATED  = "\u001B[48;5;93m";   // purple
     private static final String BG_EXPOSED     = "\u001B[48;5;214m";
     private static final String BG_INFECTED    = "\u001B[48;5;160m";
     private static final String BG_RECOVERED   = "\u001B[48;5;34m";
@@ -65,6 +66,12 @@ public class TerminalApp {
     private int     stepDelayMs    = 200;
     private int     susceptiblePct = 40;
     private int     infectedPct    = 5;
+
+    /**
+     * When true, a grid is already prepared (loaded or manually edited).
+     * The main menu will offer to start directly without random populate.
+     */
+    private boolean gridReady = false;
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
@@ -132,7 +139,17 @@ public class TerminalApp {
         switch (prompt()) {
             case "1"      -> { return true; }
             case "2"      -> { stepByStepMode(); return true; }
-            case "3"      -> { initSimulation(); return true; }
+            case "3"      -> {
+                // If grid was loaded or manually edited, restart from that exact state
+                // instead of random populate
+                if (gridReady) {
+                    ok("Restarting from saved/edited grid layout...");
+                    waitEnter();
+                } else {
+                    initSimulation();
+                }
+                return true;
+            }
             case "4"      -> { configureGrid(); configureDisease();
                                configurePopulation(); initSimulation(); return true; }
             case "5"      -> changeSpeed();
@@ -326,15 +343,16 @@ public class TerminalApp {
                 FG_GREY, toroidal ? "Toroidal" : "Bounded", RESET);
 
         statLine("Susceptible", BG_SUSCEPTIBLE, s.susceptible(), total);
-        statLine("Exposed    ", BG_EXPOSED,     s.exposed(),     total);
-        statLine("Infected   ", BG_INFECTED,    s.infected(),    total);
-        statLine("Recovered  ", BG_RECOVERED,   s.recovered(),   total);
-        statLine("Dead       ", BG_DEAD,         s.dead(),       total);
+        statLine("Vaccinated ", BG_VACCINATED,  s.vaccinated(),  total);
+        statLine("Exposed    ", BG_EXPOSED,      s.exposed(),     total);
+        statLine("Infected   ", BG_INFECTED,     s.infected(),    total);
+        statLine("Recovered  ", BG_RECOVERED,    s.recovered(),   total);
+        statLine("Dead       ", BG_DEAD,          s.dead(),       total);
 
         int bw = gridWidth * 2;
         System.out.print("  ");
-        int[] counts = {s.susceptible(), s.exposed(), s.infected(), s.recovered(), s.dead()};
-        String[] bgs  = {BG_SUSCEPTIBLE, BG_EXPOSED, BG_INFECTED, BG_RECOVERED, BG_DEAD};
+        int[] counts = {s.susceptible(), s.vaccinated(), s.exposed(), s.infected(), s.recovered(), s.dead()};
+        String[] bgs  = {BG_SUSCEPTIBLE, BG_VACCINATED, BG_EXPOSED, BG_INFECTED, BG_RECOVERED, BG_DEAD};
         for (int i = 0; i < counts.length; i++) {
             int w = total == 0 ? 0 : (int) Math.round(counts[i] * bw / (double) total);
             if (w > 0) System.out.print(bgs[i] + " ".repeat(w) + RESET);
@@ -351,6 +369,139 @@ public class TerminalApp {
     }
 
     // ── Configuration forms ───────────────────────────────────────────────────
+
+    /**
+     * Interactive grid editor — lets the user place and remove cells manually.
+     * Changes are applied to a live grid; the result can be saved or used
+     * directly as the simulation starting point.
+     */
+    private void editGridMenu() {
+        // Ensure a grid exists to edit
+        if (grid == null || grid.getWidth() != gridWidth || grid.getHeight() != gridHeight) {
+            grid   = new Grid(gridWidth, gridHeight, toroidal, disease, 0);
+            engine = new SimulationEngine(grid);
+        }
+        gridReady = true;
+
+        while (true) {
+            clear();
+            banner();
+            printGridAndStats();
+            System.out.println();
+            header("GRID EDITOR");
+            option("P", "Place cell        — type state, row, col");
+            option("R", "Remove cell       — type row, col");
+            option("F", "Fill rectangle    — type state, r1,c1,r2,c2");
+            option("C", "Clear entire grid");
+            option("V", "Vaccinate all susceptible cells");
+            option("M", "Toggle mask on a cell  — type row, col");
+            option("S", "Save current layout to file");
+            option("0", "Done — back to main menu");
+            rule();
+            String choice = prompt().toUpperCase();
+            switch (choice) {
+                case "P" -> placeCellInteractive();
+                case "R" -> removeCellInteractive();
+                case "F" -> fillRectInteractive();
+                case "C" -> {
+                    grid.clear();
+                    engine = new SimulationEngine(grid);
+                    ok("Grid cleared.");
+                    waitEnter();
+                }
+                case "V" -> {
+                    int count = 0;
+                    for (int r = 0; r < grid.getHeight(); r++)
+                        for (int col = 0; col < grid.getWidth(); col++)
+                            if (grid.getCell(r,col).getState() == CellState.SUSCEPTIBLE) {
+                                grid.setCell(r, col, CellState.VACCINATED);
+                                count++;
+                            }
+                    ok("Vaccinated " + count + " susceptible cells.");
+                    engine = new SimulationEngine(grid);
+                    waitEnter();
+                }
+                case "M" -> toggleMaskInteractive();
+                case "S" -> saveSimulation();
+                case "0" -> { return; }
+                default  -> error("Unknown option.");
+            }
+        }
+    }
+
+    /**
+     * Prompts for state + row + col and places one cell.
+     */
+    private void placeCellInteractive() {
+        System.out.println();
+        System.out.println("  States: S=Susceptible  V=Vaccinated  E=Exposed  I=Infected  R=Recovered  D=Dead");
+        System.out.print("  State (S/V/E/I/R/D): ");
+        String stateCode = readLine().toUpperCase();
+        CellState state = switch (stateCode) {
+            case "V" -> CellState.VACCINATED;
+            case "E" -> CellState.EXPOSED;
+            case "I" -> CellState.INFECTED;
+            case "R" -> CellState.RECOVERED;
+            case "D" -> CellState.DEAD;
+            default  -> CellState.SUSCEPTIBLE;
+        };
+        int row = readInt("  Row    (0-" + (grid.getHeight()-1) + "): ", 0, 0, grid.getHeight()-1);
+        int col = readInt("  Column (0-" + (grid.getWidth()-1)  + "): ", 0, 0, grid.getWidth()-1);
+        grid.setCell(row, col, state);
+        engine = new SimulationEngine(grid);
+        ok("Placed " + state + " at (" + row + ", " + col + ")");
+    }
+
+    /**
+     * Prompts for row + col and removes one cell (sets to EMPTY).
+     */
+    private void removeCellInteractive() {
+        System.out.println();
+        int row = readInt("  Row    (0-" + (grid.getHeight()-1) + "): ", 0, 0, grid.getHeight()-1);
+        int col = readInt("  Column (0-" + (grid.getWidth()-1)  + "): ", 0, 0, grid.getWidth()-1);
+        grid.setCell(row, col, CellState.EMPTY);
+        engine = new SimulationEngine(grid);
+        ok("Removed cell at (" + row + ", " + col + ")");
+    }
+
+    /**
+     * Prompts for state + two corners and fills a rectangle.
+     */
+    private void fillRectInteractive() {
+        System.out.println();
+        System.out.println("  States: S  V  E  I  R  D  or EMPTY to clear");
+        System.out.print("  State: ");
+        String stateCode = readLine().toUpperCase();
+        CellState state = switch (stateCode) {
+            case "V"     -> CellState.VACCINATED;
+            case "E"     -> CellState.EXPOSED;
+            case "I"     -> CellState.INFECTED;
+            case "R"     -> CellState.RECOVERED;
+            case "D"     -> CellState.DEAD;
+            case "EMPTY" -> CellState.EMPTY;
+            default      -> CellState.SUSCEPTIBLE;
+        };
+        int r1 = readInt("  Top-left row    (0-" + (grid.getHeight()-1) + "): ", 0, 0, grid.getHeight()-1);
+        int c1 = readInt("  Top-left col    (0-" + (grid.getWidth()-1)  + "): ", 0, 0, grid.getWidth()-1);
+        int r2 = readInt("  Bottom-right row: ", r1, r1, grid.getHeight()-1);
+        int c2 = readInt("  Bottom-right col: ", c1, c1, grid.getWidth()-1);
+        grid.fillArea(r1, c1, r2, c2, state);
+        engine = new SimulationEngine(grid);
+        ok("Filled rectangle (" + r1 + "," + c1 + ")→(" + r2 + "," + c2 + ") with " + state);
+    }
+
+    /**
+     * Prompts for row + col and toggles the mask flag on that cell.
+     */
+    private void toggleMaskInteractive() {
+        System.out.println();
+        int row = readInt("  Row    (0-" + (grid.getHeight()-1) + "): ", 0, 0, grid.getHeight()-1);
+        int col = readInt("  Column (0-" + (grid.getWidth()-1)  + "): ", 0, 0, grid.getWidth()-1);
+        Cell cell = grid.getCell(row, col);
+        if (cell == null || !cell.isAlive()) { error("No living cell at that position."); return; }
+        cell.setMasked(!cell.isMasked());
+        ok("Mask " + (cell.isMasked() ? "ON" : "OFF") + " at (" + row + ", " + col + ")");
+    }
 
     /** Grid configuration form. */
     private void configureGrid() {
@@ -535,8 +686,9 @@ public class TerminalApp {
             gridWidth  = grid.getWidth();
             gridHeight = grid.getHeight();
             toroidal   = grid.isToroidal();
+            gridReady = true;
             ok("Loaded " + path + "  (step " + engine.getStepCount() + ")");
-        } catch (IOException | ClassNotFoundException e) { error("Load failed: " + e.getMessage()); }
+        } catch (IOException e) { error("Load failed: " + e.getMessage()); }
         waitEnter();
     }
 
@@ -650,6 +802,7 @@ public class TerminalApp {
     private String cellBg(CellState s) {
         return switch (s) {
             case SUSCEPTIBLE -> BG_SUSCEPTIBLE+FG_WHITE;
+            case VACCINATED  -> BG_VACCINATED+FG_WHITE;
             case EXPOSED     -> BG_EXPOSED+FG_WHITE;
             case INFECTED    -> BG_INFECTED+FG_WHITE;
             case RECOVERED   -> BG_RECOVERED+FG_WHITE;
@@ -661,6 +814,7 @@ public class TerminalApp {
     private String cellCh(CellState s) {
         return switch (s) {
             case SUSCEPTIBLE -> " S";
+            case VACCINATED  -> " V";
             case EXPOSED     -> " E";
             case INFECTED    -> " I";
             case RECOVERED   -> " R";

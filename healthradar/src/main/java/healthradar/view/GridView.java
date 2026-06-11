@@ -33,6 +33,7 @@ public class GridView extends Canvas {
 
     private static final Color COLOR_EMPTY       = Color.rgb(240, 240, 240);
     private static final Color COLOR_SUSCEPTIBLE = Color.rgb(100, 160, 220);
+    private static final Color COLOR_VACCINATED  = Color.rgb(138,  43, 226); // purple
     private static final Color COLOR_EXPOSED     = Color.rgb(255, 165,  30);
     private static final Color COLOR_INFECTED    = Color.rgb(210,  50,  50);
     private static final Color COLOR_RECOVERED   = Color.rgb( 60, 180,  75);
@@ -93,6 +94,13 @@ public class GridView extends Canvas {
                 Color fill = stateColor(cell.getState());
                 gc.setFill(fill);
                 gc.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+                // Draw a small white dot on masked cells (mask indicator)
+                if (cell.isMasked() && cell.isAlive() && cellSize >= 6) {
+                    gc.setFill(Color.WHITE);
+                    double d = Math.max(2, cellSize * 0.25);
+                    gc.fillOval(c * cellSize + cellSize - d - 1,
+                                r * cellSize + 1, d, d);
+                }
             }
         }
 
@@ -218,6 +226,7 @@ public class GridView extends Canvas {
     public static Color stateColor(CellState state) {
         return switch (state) {
             case SUSCEPTIBLE -> COLOR_SUSCEPTIBLE;
+            case VACCINATED  -> COLOR_VACCINATED;
             case EXPOSED     -> COLOR_EXPOSED;
             case INFECTED    -> COLOR_INFECTED;
             case RECOVERED   -> COLOR_RECOVERED;

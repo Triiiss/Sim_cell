@@ -78,6 +78,7 @@ public class SimulationEngine implements Serializable {
         StepStats s = new StepStats(
                 stepCount,
                 grid.countState(CellState.SUSCEPTIBLE),
+                grid.countState(CellState.VACCINATED),
                 grid.countState(CellState.EXPOSED),
                 grid.countState(CellState.INFECTED),
                 grid.countState(CellState.RECOVERED),
@@ -115,6 +116,37 @@ public class SimulationEngine implements Serializable {
         return java.util.Collections.unmodifiableList(history);
     }
 
+    /**
+     * Clears the statistics history.
+     * Used by {@link healthradar.io.SimulationSerializer} after loading.
+     */
+    public void clearHistory() { history.clear(); }
+
+    /**
+     * Directly sets the step counter.
+     * Used by {@link healthradar.io.SimulationSerializer} after loading.
+     *
+     * @param count the step count to restore
+     */
+    public void setStepCount(int count) { this.stepCount = count; }
+
+    /**
+     * Appends a pre-built {@link StepStats} to the history.
+     * Used by {@link healthradar.io.SimulationSerializer} to restore history.
+     *
+     * @param s the stats snapshot to inject
+     */
+    public void injectStat(StepStats s) {
+        history.add(s);
+        if (history.size() > MAX_HISTORY) history.remove(0);
+    }
+
+    /**
+     * Records a stats snapshot from the current grid state.
+     * Used after loading when the saved history was empty.
+     */
+    public void recordCurrentStats() { recordStats(); }
+
     // ── Inner record ─────────────────────────────────────────────────────────
 
     /**
@@ -127,11 +159,11 @@ public class SimulationEngine implements Serializable {
      * @param recovered   count of RECOVERED cells
      * @param dead        count of DEAD cells
      */
-    public record StepStats(int step, int susceptible, int exposed,
-                            int infected, int recovered, int dead) implements Serializable {
+    public record StepStats(int step, int susceptible, int vaccinated,
+                            int exposed, int infected, int recovered, int dead) implements Serializable {
 
-        /** @return total living population (S + E + I + R) */
-        public int totalLiving() { return susceptible + exposed + infected + recovered; }
+        /** @return total living population (S + V + E + I + R) */
+        public int totalLiving() { return susceptible + vaccinated + exposed + infected + recovered; }
 
         /**
          * Returns the percentage of living cells currently infected.

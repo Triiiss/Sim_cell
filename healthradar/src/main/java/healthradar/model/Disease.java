@@ -157,6 +157,44 @@ public class Disease implements Serializable {
     /** @return transmission radius for airborne mode */
     public int getTransmissionRadius() { return transmissionRadius; }
 
+    // ── Vaccine parameters ────────────────────────────────────────────────────
+
+    /**
+     * Vaccine efficacy: probability reduction factor applied to vaccinated cells.
+     * A value of 0.85 means an 85% reduction in infection probability.
+     * Based on real-world COVID mRNA vaccines (Pfizer: 91%, AstraZeneca: 74%,
+     * average used in SEIR models: 0.70–0.90).
+     * Influenza vaccines average 0.40–0.60 in seasonal models (CDC data).
+     */
+    private double vaccineEfficacy = 0.85;
+
+    /**
+     * Number of simulation steps before a VACCINATED cell loses immunity
+     * and returns to SUSCEPTIBLE (waning immunity).
+     * In real-world models: 6–12 months for COVID mRNA vaccines.
+     * Default = 180 steps (assuming 1 step ≈ 1 day).
+     */
+    private int vaccineImmunityDuration = 180;
+
+    // ── Mask parameters ───────────────────────────────────────────────────────
+
+    /**
+     * Inward mask efficacy: reduction of infection probability for a masked
+     * SUSCEPTIBLE/VACCINATED cell.
+     * Surgical mask inward efficacy: 0.65–0.75 (Cheng et al. 2021).
+     * Community mask meta-analysis average: 0.15–0.45.
+     * Default = 0.50 (moderate surgical mask).
+     */
+    private double maskInwardEfficacy = 0.50;
+
+    /**
+     * Outward mask efficacy: reduction of transmission rate when the
+     * INFECTED cell is wearing a mask (source control).
+     * Studies show outward efficacy is slightly higher than inward.
+     * Default = 0.55 (Froese & Prempeh 2022, JMIR model value).
+     */
+    private double maskOutwardEfficacy = 0.55;
+
     /** @return true if EXPOSED cells can transmit the disease */
     public boolean isContagiousInExposed() { return contagiousInExposed; }
 
@@ -209,7 +247,24 @@ public class Disease implements Serializable {
         this.exposedTransmissionFactor = Math.max(0.0, Math.min(1.0, factor));
     }
 
-    /**
+    /** @return vaccine efficacy [0,1] */
+    public double getVaccineEfficacy() { return vaccineEfficacy; }
+    /** @param e vaccine efficacy clamped [0,1] */
+    public void setVaccineEfficacy(double e) { vaccineEfficacy = Math.max(0,Math.min(1,e)); }
+    /** @return vaccine immunity duration in steps */
+    public int getVaccineImmunityDuration() { return vaccineImmunityDuration; }
+    /** @param d vaccine immunity duration */
+    public void setVaccineImmunityDuration(int d) { vaccineImmunityDuration = Math.max(1,d); }
+    /** @return inward mask efficacy [0,1] */
+    public double getMaskInwardEfficacy() { return maskInwardEfficacy; }
+    /** @param e inward mask efficacy clamped [0,1] */
+    public void setMaskInwardEfficacy(double e) { maskInwardEfficacy = Math.max(0,Math.min(1,e)); }
+    /** @return outward mask efficacy [0,1] */
+    public double getMaskOutwardEfficacy() { return maskOutwardEfficacy; }
+    /** @param e outward mask efficacy clamped [0,1] */
+    public void setMaskOutwardEfficacy(double e) { maskOutwardEfficacy = Math.max(0,Math.min(1,e)); }
+
+        /**
      * Returns a preset disease configuration for Influenza (contact mode).
      *
      * @return a Disease instance representing Influenza

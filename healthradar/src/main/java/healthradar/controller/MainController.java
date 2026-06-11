@@ -66,6 +66,8 @@ public class MainController {
 
     private EditMode   editMode       = EditMode.BRUSH;
     private CellState  paintState     = CellState.SUSCEPTIBLE;
+    /** When true, painting toggles the mask flag instead of changing the state. */
+    private boolean    maskMode       = false;
 
     // ── UI controls (kept as fields for cross-method access) ──────────────────
 
@@ -91,6 +93,10 @@ public class MainController {
     private Slider incubationSlider;
     private Slider infectionDurSlider;
     private Slider immunitySlider;
+    private Slider vaccineEfficacySlider;
+    private Slider vaccineImmunitySlider;
+    private Slider maskInwardSlider;
+    private Slider maskOutwardSlider;
     private CheckBox airborneCheck;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -208,11 +214,23 @@ public class MainController {
         // ── Paint state selector ──────────────────────────────────────────────
         Label paintLbl = whiteLabel("Paint:");
         paintStateCombo = new ComboBox<>();
-        paintStateCombo.getItems().addAll("Susceptible","Exposed","Infected","Recovered","Dead","Empty");
+        paintStateCombo.getItems().addAll("Susceptible","Vaccinated","Exposed","Infected","Recovered","Dead","Empty");
         paintStateCombo.setValue("Susceptible");
         paintStateCombo.setOnAction(e -> onPaintStateSelected());
 
         // ── Save / Load ───────────────────────────────────────────────────────
+        // ── Mask toggle ───────────────────────────────────────────────────────
+        ToggleButton maskBtn = new ToggleButton("😷 Mask");
+        maskBtn.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
+        maskBtn.selectedProperty().addListener((obs, o, sel) -> {
+            maskMode = sel;
+            maskBtn.setStyle(sel
+                ? "-fx-background-color:#1a6b8a; -fx-text-fill:white; -fx-font-size:11px;"
+                : "-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
+            setStatus(sel ? "Mask mode ON — paint to toggle mask on cells"
+                          : "Mask mode OFF");
+        });
+
         Button saveBtn = styledButton("💾 Save", "#8e44ad");
         Button loadBtn = styledButton("📂 Load", "#2980b9");
         saveBtn.setOnAction(e -> saveSimulation());
@@ -235,6 +253,7 @@ public class MainController {
                 modeLbl, brushBtn, zoneBtn, indivBtn,
                 new Separator(Orientation.VERTICAL),
                 paintLbl, paintStateCombo,
+                maskBtn,
                 new Separator(Orientation.VERTICAL),
                 saveBtn, loadBtn,
                 new Separator(Orientation.VERTICAL),
@@ -272,15 +291,15 @@ public class MainController {
 
         transmissionSlider = labelledSlider("Transmission rate  (0.01–1.0)",
                 0.01, 1.0, currentDisease.getTransmissionRate(), box);
-        mortalitySlider    = labelledSlider("Mortality rate     (0.0–0.5)",
+        mortalitySlider    = labelledSlider("Mortality rate     (0.0-0.5)",
                 0.0,  0.5, currentDisease.getMortalityRate(),    box);
-        radiusSlider       = labelledSlider("Airborne radius    (1–10 cells)",
+        radiusSlider       = labelledSlider("Airborne radius    (1-10 cells)",
                 1, 10, currentDisease.getTransmissionRadius(),   box);
-        incubationSlider   = labelledSlider("Incubation steps   (1–30)",
+        incubationSlider   = labelledSlider("Incubation steps   (1-30)",
                 1, 30, currentDisease.getIncubationPeriod(),     box);
-        infectionDurSlider = labelledSlider("Infection steps    (1–60)",
+        infectionDurSlider = labelledSlider("Infection steps    (1-60)",
                 1, 60, currentDisease.getInfectionDuration(),    box);
-        immunitySlider     = labelledSlider("Immunity steps     (1–120)",
+        immunitySlider     = labelledSlider("Immunity steps     (1-120)",
                 1, 120, currentDisease.getImmunityDuration(),    box);
 
         transmissionSlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
@@ -289,6 +308,21 @@ public class MainController {
         incubationSlider  .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         infectionDurSlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         immunitySlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
+
+        box.getChildren().add(sectionLabel("Vaccine & Mask Parameters"));
+        vaccineEfficacySlider = labelledSlider("Vaccine efficacy    (0.0-1.0)",
+                0.0, 1.0, currentDisease.getVaccineEfficacy(), box);
+        vaccineImmunitySlider = labelledSlider("Vaccine immunity steps (1-500)",
+                1, 500, currentDisease.getVaccineImmunityDuration(), box);
+        maskInwardSlider  = labelledSlider("Mask inward efficacy  (0.0-1.0)",
+                0.0, 1.0, currentDisease.getMaskInwardEfficacy(), box);
+        maskOutwardSlider = labelledSlider("Mask outward efficacy (0.0-1.0)",
+                0.0, 1.0, currentDisease.getMaskOutwardEfficacy(), box);
+
+        vaccineEfficacySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
+        vaccineImmunitySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
+        maskInwardSlider     .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
+        maskOutwardSlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
 
         box.getChildren().add(airborneCheck);
 
@@ -363,7 +397,14 @@ public class MainController {
 
         switch (editMode) {
             case BRUSH, INDIVIDUAL -> {
-                grid.setCell(row, col, paintState);
+                if (maskMode) {
+                    // Toggle the mask flag on the cell without changing its state
+                    var cell = grid.getCell(row, col);
+                    if (cell != null && cell.isAlive())
+                        cell.setMasked(!cell.isMasked());
+                } else {
+                    grid.setCell(row, col, paintState);
+                }
                 gridView.redraw();
             }
             case ZONE -> {
@@ -385,7 +426,12 @@ public class MainController {
 
         switch (editMode) {
             case BRUSH -> {
-                grid.setCell(row, col, paintState);
+                if (maskMode) {
+                    var cell = grid.getCell(row, col);
+                    if (cell != null && cell.isAlive()) cell.setMasked(true);
+                } else {
+                    grid.setCell(row, col, paintState);
+                }
                 gridView.redraw();
             }
             case ZONE -> gridView.drawZoneSelection(row, col);
@@ -482,13 +528,17 @@ public class MainController {
         grid.setDisease(currentDisease);
         // Block applyDiseaseParams() while we sync the controls to the preset
         updatingControls = true;
-        transmissionSlider.setValue(currentDisease.getTransmissionRate());
-        mortalitySlider   .setValue(currentDisease.getMortalityRate());
-        radiusSlider      .setValue(currentDisease.getTransmissionRadius());
-        incubationSlider  .setValue(currentDisease.getIncubationPeriod());
-        infectionDurSlider.setValue(currentDisease.getInfectionDuration());
-        immunitySlider    .setValue(currentDisease.getImmunityDuration());
-        airborneCheck     .setSelected(currentDisease.isAirborne());
+        transmissionSlider   .setValue(currentDisease.getTransmissionRate());
+        mortalitySlider      .setValue(currentDisease.getMortalityRate());
+        radiusSlider         .setValue(currentDisease.getTransmissionRadius());
+        incubationSlider     .setValue(currentDisease.getIncubationPeriod());
+        infectionDurSlider   .setValue(currentDisease.getInfectionDuration());
+        immunitySlider       .setValue(currentDisease.getImmunityDuration());
+        vaccineEfficacySlider.setValue(currentDisease.getVaccineEfficacy());
+        vaccineImmunitySlider.setValue(currentDisease.getVaccineImmunityDuration());
+        maskInwardSlider     .setValue(currentDisease.getMaskInwardEfficacy());
+        maskOutwardSlider    .setValue(currentDisease.getMaskOutwardEfficacy());
+        airborneCheck        .setSelected(currentDisease.isAirborne());
         updatingControls = false;
         setStatus("Disease set to: " + currentDisease);
     }
@@ -510,6 +560,7 @@ public class MainController {
     /** Reacts to paint state combo selection. */
     private void onPaintStateSelected() {
         paintState = switch (paintStateCombo.getValue()) {
+            case "Vaccinated" -> CellState.VACCINATED;
             case "Exposed"    -> CellState.EXPOSED;
             case "Infected"   -> CellState.INFECTED;
             case "Recovered"  -> CellState.RECOVERED;
@@ -576,7 +627,7 @@ public class MainController {
             gridView.redraw();
             statsPanel.refresh();
             setStatus("Loaded from " + file.getName() + " (step " + engine.getStepCount() + ")");
-        } catch (IOException | ClassNotFoundException ex) {
+        } catch (IOException ex) {
             alert("Load error", ex.getMessage());
         }
     }
@@ -749,13 +800,17 @@ public class MainController {
 
             // Sync toolbar controls to new settings
             updatingControls = true;
-            transmissionSlider.setValue(result.disease().getTransmissionRate());
-            mortalitySlider   .setValue(result.disease().getMortalityRate());
-            radiusSlider      .setValue(result.disease().getTransmissionRadius());
-            incubationSlider  .setValue(result.disease().getIncubationPeriod());
-            infectionDurSlider.setValue(result.disease().getInfectionDuration());
-            immunitySlider    .setValue(result.disease().getImmunityDuration());
-            airborneCheck     .setSelected(result.disease().isAirborne());
+            transmissionSlider   .setValue(result.disease().getTransmissionRate());
+            mortalitySlider      .setValue(result.disease().getMortalityRate());
+            radiusSlider         .setValue(result.disease().getTransmissionRadius());
+            incubationSlider     .setValue(result.disease().getIncubationPeriod());
+            infectionDurSlider   .setValue(result.disease().getInfectionDuration());
+            immunitySlider       .setValue(result.disease().getImmunityDuration());
+            vaccineEfficacySlider.setValue(result.disease().getVaccineEfficacy());
+            vaccineImmunitySlider.setValue(result.disease().getVaccineImmunityDuration());
+            maskInwardSlider     .setValue(result.disease().getMaskInwardEfficacy());
+            maskOutwardSlider    .setValue(result.disease().getMaskOutwardEfficacy());
+            airborneCheck        .setSelected(result.disease().isAirborne());
             updatingControls = false;
 
             stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);

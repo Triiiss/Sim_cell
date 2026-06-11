@@ -32,7 +32,7 @@ public class StatsPanel extends VBox {
 
     private static final int PANEL_WIDTH  = 280;
     private static final int CHART_HEIGHT = 180;
-    private static final int SUMMARY_H    = 160;
+    private static final int SUMMARY_H    = 210;
     private static final int LEGEND_H     = 80;
 
     // ── Canvas layers ─────────────────────────────────────────────────────────
@@ -115,31 +115,34 @@ public class StatsPanel extends VBox {
         gc.setFill(Color.rgb(180, 180, 180));
         gc.fillText("Population: " + total, 8, 35);
 
-        // Per-state lines
-        String[] labels  = { "Susceptible", "Exposed", "Infected", "Recovered", "Dead" };
-        int[]    counts  = { s.susceptible(), s.exposed(), s.infected(), s.recovered(), s.dead() };
+        // Per-state lines — 6 states, 16px per line, starting at y=52
+        String[] labels  = { "Susceptible", "Vaccinated", "Exposed", "Infected", "Recovered", "Dead" };
+        int[]    counts  = { s.susceptible(), s.vaccinated(), s.exposed(), s.infected(), s.recovered(), s.dead() };
         Color[]  colours = {
             GridView.stateColor(CellState.SUSCEPTIBLE),
+            GridView.stateColor(CellState.VACCINATED),
             GridView.stateColor(CellState.EXPOSED),
             GridView.stateColor(CellState.INFECTED),
             GridView.stateColor(CellState.RECOVERED),
             GridView.stateColor(CellState.DEAD)
         };
 
-        double y = 58;
+        gc.setFont(Font.font("Monospaced", 10));
+        double lineH = 16;   // pixels per state row
+        double y0    = 52;   // first row baseline
         for (int i = 0; i < labels.length; i++) {
             double pct = total == 0 ? 0 : counts[i] * 100.0 / total;
+            double y = y0 + i * lineH;
             gc.setFill(colours[i]);
-            gc.fillRect(8, y - 10, 10, 10);
+            gc.fillRect(8, y - 9, 9, 9);
             gc.setFill(Color.WHITE);
             gc.fillText(String.format("%-12s %5d  %5.1f%%", labels[i], counts[i], pct),
-                        24, y);
-            y += 17;
+                        22, y);
         }
 
-        // Stacked bar
-        double barY = h - 18;
-        double barH = 12;
+        // Stacked bar — always 14px above the bottom of the canvas
+        double barY = h - 16;
+        double barH = 10;
         double x = 8;
         double barW = w - 16;
         for (int i = 0; i < counts.length; i++) {
@@ -168,6 +171,7 @@ public class StatsPanel extends VBox {
         int maxCount = 1;
         for (StepStats s : history) {
             maxCount = Math.max(maxCount, s.susceptible());
+            maxCount = Math.max(maxCount, s.vaccinated());
             maxCount = Math.max(maxCount, s.infected());
             maxCount = Math.max(maxCount, s.recovered());
             maxCount = Math.max(maxCount, s.exposed());
@@ -187,6 +191,7 @@ public class StatsPanel extends VBox {
 
         // Draw each series
         drawSeries(gc, history, "susceptible", Color.rgb(100,160,220), padL, padT, chartW, chartH, maxCount);
+        drawSeries(gc, history, "vaccinated",  Color.rgb(138, 43,226), padL, padT, chartW, chartH, maxCount);
         drawSeries(gc, history, "exposed",     Color.rgb(255,165, 30), padL, padT, chartW, chartH, maxCount);
         drawSeries(gc, history, "infected",    Color.rgb(210, 50, 50), padL, padT, chartW, chartH, maxCount);
         drawSeries(gc, history, "recovered",   Color.rgb( 60,180, 75), padL, padT, chartW, chartH, maxCount);
@@ -218,6 +223,7 @@ public class StatsPanel extends VBox {
             StepStats s = history.get(i);
             int count = switch (series) {
                 case "susceptible" -> s.susceptible();
+                case "vaccinated"  -> s.vaccinated();
                 case "exposed"     -> s.exposed();
                 case "infected"    -> s.infected();
                 case "recovered"   -> s.recovered();
@@ -239,19 +245,19 @@ public class StatsPanel extends VBox {
         gc.setFill(Color.rgb(26, 26, 46));
         gc.fillRect(0, 0, w, LEGEND_H);
 
-        gc.setFont(Font.font("Monospaced", 11));
-        String[] names = {"Susceptible","Exposed","Infected","Recovered","Dead"};
-        CellState[] states = {CellState.SUSCEPTIBLE, CellState.EXPOSED,
-                              CellState.INFECTED, CellState.RECOVERED, CellState.DEAD};
-        int col = 0;
-        double x = 4, y = 16;
+        gc.setFont(Font.font("Monospaced", 10));
+        String[] names = {"Susceptible","Vaccinated","Exposed","Infected","Recovered","Dead"};
+        CellState[] states = {CellState.SUSCEPTIBLE, CellState.VACCINATED,
+                              CellState.EXPOSED, CellState.INFECTED,
+                              CellState.RECOVERED, CellState.DEAD};
+        // 2 columns of 3 rows, fixed positions
+        double[] xs = {4,   140, 4,   140, 4,   140};
+        double[] ys = {14,  14,  30,  30,  46,  46};
         for (int i = 0; i < names.length; i++) {
             gc.setFill(GridView.stateColor(states[i]));
-            gc.fillRect(x, y - 10, 10, 10);
+            gc.fillRect(xs[i], ys[i] - 9, 9, 9);
             gc.setFill(Color.WHITE);
-            gc.fillText(names[i], x + 14, y);
-            col++;
-            if (col == 1) { x += 130; } else { col = 0; x = 4; y += 18; }
+            gc.fillText(names[i], xs[i] + 13, ys[i]);
         }
     }
 }
