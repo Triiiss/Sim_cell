@@ -22,6 +22,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 
 /**
  * Main application controller.
@@ -73,6 +74,7 @@ public class MainController {
 
     private Label      statusLabel;
     private Slider     speedSlider;
+    private Label      stepDelayValueLabel;
     private ComboBox<String> diseaseCombo;
     private ComboBox<String> paintStateCombo;
     private ComboBox<ZoneType> zoneTypeCombo;
@@ -80,6 +82,9 @@ public class MainController {
     // ── Disease presets ───────────────────────────────────────────────────────
 
     private Disease currentDisease = Disease.influenza();
+
+    private static final int MIN_STEP_DELAY_MS = 50;
+    private static final int MAX_STEP_DELAY_MS = 10_000;
 
     // ── Random populate sliders ───────────────────────────────────────────────
 
@@ -205,13 +210,19 @@ public class MainController {
         resetBtn.setOnAction(e -> resetSimulation());
 
         // ── Speed ─────────────────────────────────────────────────────────────
-        Label speedLbl = whiteLabel("Speed:");
-        speedSlider = new Slider(1, 20, 5);
-        speedSlider.setPrefWidth(100);
-        speedSlider.setMajorTickUnit(5);
+        Label speedLbl = whiteLabel("Delay:");
+        speedSlider = new Slider(MIN_STEP_DELAY_MS, MAX_STEP_DELAY_MS, currentStepDelayMs());
+        speedSlider.setPrefWidth(140);
+        speedSlider.setMajorTickUnit(1000);
+        speedSlider.setBlockIncrement(250);
         speedSlider.setShowTickMarks(true);
-        speedSlider.valueProperty().addListener((obs, o, n) ->
-                stepIntervalNanos = (long)(1_000_000_000L / n.doubleValue()));
+        speedSlider.setTooltip(new Tooltip("Delay between automatic simulation steps. Higher means slower."));
+        stepDelayValueLabel = whiteLabel(formatStepDelay(currentStepDelayMs()));
+        speedSlider.valueProperty().addListener((obs, o, n) -> {
+            int delayMs = n.intValue();
+            stepIntervalNanos = delayMs * 1_000_000L;
+            stepDelayValueLabel.setText(formatStepDelay(delayMs));
+        });
 
         // ── Disease selector ──────────────────────────────────────────────────
         Label diseaseLbl = whiteLabel("Disease:");
@@ -270,7 +281,7 @@ public class MainController {
         bar.getChildren().addAll(
             playBtn, pauseBtn, stepBtn, resetBtn,
                 new Separator(Orientation.VERTICAL),
-                speedLbl, speedSlider,
+                speedLbl, speedSlider, stepDelayValueLabel,
                 new Separator(Orientation.VERTICAL),
                 diseaseLbl, diseaseCombo,
                 new Separator(Orientation.VERTICAL),
@@ -753,6 +764,16 @@ public class MainController {
         return l;
     }
 
+    private int currentStepDelayMs() {
+        return (int) Math.max(MIN_STEP_DELAY_MS, Math.min(MAX_STEP_DELAY_MS,
+                Math.round(stepIntervalNanos / 1_000_000.0)));
+    }
+
+    private String formatStepDelay(int delayMs) {
+        if (delayMs < 1000) return delayMs + " ms";
+        return String.format(Locale.ROOT, "%.1f s", delayMs / 1000.0);
+    }
+
     /**
      * Creates a section header label for the sidebar.
      *
@@ -912,7 +933,8 @@ public class MainController {
             // ── Toujours : taille cellule + vitesse + sync sliders ────────
             gridView.setCellSize(result.cellSize());
             stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);
-            speedSlider.setValue(1000.0 / result.stepDelayMs());
+            speedSlider.setValue(result.stepDelayMs());
+            stepDelayValueLabel.setText(formatStepDelay(result.stepDelayMs()));
 
             updatingControls = true;
             transmissionSlider   .setValue(result.disease().getTransmissionRate());
