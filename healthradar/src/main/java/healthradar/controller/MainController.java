@@ -851,23 +851,48 @@ public class MainController {
                 currentDisease,
                 curS, curI,
                 (int)(stepIntervalNanos / 1_000_000),
-                (int) gridView.getCellSize());
+                (int) gridView.getCellSize(),
+                false);
 
         ConfigPanel.show(primaryStage, current, result -> {
-            // Apply grid settings
-            grid = new Grid(result.gridWidth(), result.gridHeight(),
-                    result.toroidal(), result.disease(), 0);
             currentDisease = result.disease();
 
-            // Re-populate grid with exact counts from settings
-            grid.randomPopulate(result.susceptibleCount(), result.infectedCount());
+            if (result.restart()) {
+                // ── Apply & Restart : recrée la grille et repeuple ────────
+                grid = new Grid(result.gridWidth(), result.gridHeight(),
+                        result.toroidal(), currentDisease, 0);
+                grid.randomPopulate(result.susceptibleCount(), result.infectedCount());
+                engine = new SimulationEngine(grid);
+                gridView.setGrid(grid);
+                statsPanel.setEngine(engine);
+                setStatus("Grid restarted: " + result.gridWidth() + "×"
+                        + result.gridHeight() + "  " + currentDisease.getName());
+            } else {
+                // ── Apply Only : garde la grille actuelle ─────────────────
+                if (result.gridWidth()  != grid.getWidth()
+                 || result.gridHeight() != grid.getHeight()
+                 || result.toroidal()   != grid.isToroidal()) {
+                    // Dimensions changées : nouvelle grille vide
+                    grid = new Grid(result.gridWidth(), result.gridHeight(),
+                            result.toroidal(), currentDisease, 0);
+                    engine = new SimulationEngine(grid);
+                    gridView.setGrid(grid);
+                    statsPanel.setEngine(engine);
+                    setStatus("Grid resized to " + result.gridWidth() + "×"
+                            + result.gridHeight() + " — use Populate to fill it.");
+                } else {
+                    // Mêmes dimensions : applique la maladie sur la grille en cours
+                    grid.setDisease(currentDisease);
+                    setStatus("Settings applied (grid preserved): "
+                            + currentDisease.getName());
+                }
+            }
 
-            engine = new SimulationEngine(grid);
-            gridView.setGrid(grid);
+            // ── Toujours : taille cellule + vitesse + sync sliders ────────
             gridView.setCellSize(result.cellSize());
-            statsPanel.setEngine(engine);
+            stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);
+            speedSlider.setValue(1000.0 / result.stepDelayMs());
 
-            // Sync toolbar controls to new settings
             updatingControls = true;
             transmissionSlider   .setValue(result.disease().getTransmissionRate());
             mortalitySlider      .setValue(result.disease().getMortalityRate());
@@ -882,19 +907,12 @@ public class MainController {
             airborneCheck        .setSelected(result.disease().isAirborne());
             updatingControls = false;
 
-            stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);
-            speedSlider.setValue(1000.0 / result.stepDelayMs());
-
-            // Convert counts back to % for the sidebar sliders
             int _total = result.gridWidth() * result.gridHeight();
             susceptibleSlider.setValue(_total == 0 ? 0 : result.susceptibleCount() * 100.0 / _total);
             infectedSlider   .setValue(_total == 0 ? 0 : result.infectedCount()    * 100.0 / _total);
 
             gridView.redraw();
             statsPanel.refresh();
-            setStatus("Settings applied: " + result.gridWidth() + "×" + result.gridHeight()
-                    + "  " + result.disease().getName()
-                    + "  [" + result.susceptibleCount() + "S / " + result.infectedCount() + "I]");
         });
     }
 

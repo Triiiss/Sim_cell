@@ -65,7 +65,8 @@ public class ConfigPanel {
             int gridWidth, int gridHeight, boolean toroidal,
             Disease disease,
             int susceptibleCount, int infectedCount,
-            int stepDelayMs, int cellSize) {}
+            int stepDelayMs, int cellSize,
+            boolean restart) {}
 
     /** Private constructor – use {@link #show} instead. */
     private ConfigPanel() {}
@@ -196,11 +197,17 @@ public class ConfigPanel {
         cellSizeSlider.valueProperty().addListener((o,v,n) -> cellLbl.setText((int)(double)n + " px"));
 
         // ── Buttons ───────────────────────────────────────────────────────────
-        Button applyBtn  = colorButton("Apply & Restart", "#2ecc71");
-        Button cancelBtn = colorButton("Cancel",          "#e74c3c");
+        Button applyOnlyBtn    = colorButton("Apply",           "#3498db");
+        Button applyRestartBtn = colorButton("Apply & Restart", "#2ecc71");
+        Button cancelBtn       = colorButton("Cancel",          "#e74c3c");
 
-        applyBtn.setOnAction(e -> {
-            // Build disease from current slider values
+        applyOnlyBtn.setTooltip(new Tooltip(
+            "Apply disease / speed / cell-size without resetting the grid."));
+        applyRestartBtn.setTooltip(new Tooltip(
+            "Reset the grid and repopulate with the chosen settings."));
+
+        // Logic shared by both buttons — builds Disease + ConfigResult
+        java.util.function.Consumer<Boolean> doApply = (restart) -> {
             Disease d = new Disease(
                     nameField.getText().isEmpty() ? "Custom" : nameField.getText(),
                     airborneCB.isSelected(),
@@ -213,22 +220,21 @@ public class ConfigPanel {
                     contagiousExposedCB.isSelected(),
                     expFactorSlider.getValue());
             selectedDisease[0] = d;
-
-            ConfigResult result = new ConfigResult(
-                    widthSpin.getValue(),
-                    heightSpin.getValue(),
-                    toroidalCB.isSelected(),
-                    d,
-                    sSpinner.getValue(),
-                    iSpinner.getValue(),
+            onApply.accept(new ConfigResult(
+                    widthSpin.getValue(), heightSpin.getValue(),
+                    toroidalCB.isSelected(), d,
+                    sSpinner.getValue(), iSpinner.getValue(),
                     (int) delaySlider.getValue(),
-                    (int) cellSizeSlider.getValue());
-            onApply.accept(result);
+                    (int) cellSizeSlider.getValue(),
+                    restart));
             dialog.close();
-        });
-        cancelBtn.setOnAction(e -> dialog.close());
+        };
 
-        HBox buttons = new HBox(10, applyBtn, cancelBtn);
+        applyOnlyBtn   .setOnAction(e -> doApply.accept(false));
+        applyRestartBtn.setOnAction(e -> doApply.accept(true));
+        cancelBtn      .setOnAction(e -> dialog.close());
+
+        HBox buttons = new HBox(10, applyOnlyBtn, applyRestartBtn, cancelBtn);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setPadding(new Insets(10));
         buttons.setStyle("-fx-background-color:#111a33;");
