@@ -18,5 +18,6 @@ public enum EditMode {
     /** Select a rectangular region and fill it. */
     ZONE,
     /** Click a single cell to change its state. */
-    INDIVIDUAL
+    INDIVIDUAL,
+    ZONETYPE
 }

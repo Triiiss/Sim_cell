@@ -86,7 +86,7 @@ public class Grid implements Serializable {
      */
     public void setCell(int row, int col, CellState state) {
         if (!inBounds(row, col)) return;
-        cells[row][col] = (state == CellState.EMPTY) ? new Cell() : new Cell(state, rng);
+        cells[row][col] = (state == CellState.EMPTY) ? new Cell() : new Cell(state, cells[row][col].getZoneType(),rng);
     }
 
     /**
@@ -149,54 +149,86 @@ public class Grid implements Serializable {
         cells = next;
     }
 
-    /**
-     * Phase 1 – alive cells randomly move to adjacent empty cells.
-     *
-     * @param grid the working copy of the grid
-     */
-    private void movePhase(Cell[][] grid) {
-        // Iterate in random order to avoid directional bias
+    public void movePhase(Cell[][] nextCells) {
         List<int[]> coords = shuffledCoords();
-        for (int[] pos : coords) {
-            int r = pos[0], c = pos[1];
-            Cell cell = grid[r][c];
-            if (!cell.isAlive()) continue;
-            if (rng.nextDouble() >= cell.getMoveProbability()) continue;
 
-            // Pick a random orthogonal neighbour that is currently empty
-            int[][] dirs = {{-1,0},{1,0},{0,-1},{0,1}};
-            List<int[]> empty = new ArrayList<>();
-            for (int[] d : dirs) {
-                int nr = wrap(r + d[0], height);
-                int nc = wrap(c + d[1], width);
-                if (toroidal || inBounds(r + d[0], c + d[1]))
-                    if (grid[nr][nc].isEmpty()) empty.add(new int[]{nr, nc});
+        for (int[] coord : coords) {
+            int r = coord[0];
+            int c = coord[1];
+            
+            Cell currentAgent = cells[r][c];
+
+            // Si la case est vide ou si la personne est morte, elle reste sur place
+            if (currentAgent.getState() == CellState.EMPTY || currentAgent.getState() == CellState.DEAD) {
+                continue;
             }
-            if (empty.isEmpty()) continue;
-            int[] dest = empty.get(rng.nextInt(empty.size()));
-            // Swap
-            Cell tmp = grid[dest[0]][dest[1]];
-            grid[dest[0]][dest[1]] = grid[r][c];
-            grid[r][c] = tmp;
+
+            // L'agent décide de bouger selon sa propre probabilité
+            if (rng.nextDouble() < currentAgent.getMoveProbability()) {
+                
+                // 3. Calcul manuel des voisins à un rayon de 1 (Copie conforme de la logique de ton getNeighbors d'origine)
+                List<int[]> neighbors = new ArrayList<>();
+                for (int rd = -1; rd <= 1; rd++) {
+                    for (int cd = -1; cd <= 1; cd++) {
+                        if (rd == 0 && cd == 0) continue;
+
+                        int nr = r + rd;
+                        int nc = c + cd;
+
+                        if (toroidal) {
+                            // Utilise la méthode wrap() qui existe déjà dans ton Grid.java
+                            nr = wrap(nr, height);
+                            nc = wrap(nc, width);
+                            neighbors.add(new int[]{nr, nc});
+                        } else {
+                            // Vérification manuelle des bordures (ce que faisait isValid)
+                            if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
+                                neighbors.add(new int[]{nr, nc});
+                            }
+                        }
+                    }
+                }
+                
+                // Mélange des directions pour un déplacement aléatoire
+                Collections.shuffle(neighbors, rng);
+
+                // 4. Tentative de déplacement
+                for (int[] nextCoord : neighbors) {
+                    int nextR = nextCoord[0];
+                    int nextC = nextCoord[1];
+
+                    // On vérifie si la case est libre dans la grille FUTURE (nextCells)
+                    if (nextCells[nextR][nextC].getState() == CellState.EMPTY) {
+                        
+                        Cell futureSource = nextCells[r][c];
+                        Cell futureTarget = nextCells[nextR][nextC];
+
+                        // On transfère les attributs de la PERSONNE vers sa nouvelle cellule
+                        futureTarget.setState(currentAgent.getState());
+                        futureTarget.setStateAge(currentAgent.getStateAge());
+                        futureTarget.setResistance(currentAgent.getResistance());
+                        futureTarget.setMoveProbability(currentAgent.getMoveProbability());
+                        futureTarget.setMasked(currentAgent.isMasked());
+
+                        // L'ancienne cellule redevient VIDE
+                        futureSource.setState(CellState.EMPTY);
+                        futureSource.setStateAge(0);
+                        futureSource.setResistance(0);
+                        futureSource.setMoveProbability(0);
+                        futureSource.setMasked(false);
+
+                        // Note magique : futureSource.zoneType et futureTarget.zoneType ne sont pas modifiés.
+                        // Donc le type de zone (Route, commerce...) reste ancré au sol.
+                        break; 
+                    }
+                }
+            }
         }
+
+        // 5. On applique la grille future
+        this.cells = nextCells;
     }
 
-    /**
-     * Phase 2 – infected cells try to transmit to susceptible cells within
-     * their influence radius.
-     *
-     * @param grid the working copy of the grid
-     */
-    /**
-     * Phase 2 – infected (and optionally exposed) cells try to transmit to
-     * susceptible cells within their influence radius.
-     *
-     * <p>If {@link Disease#isContagiousInExposed()} is true, EXPOSED cells also
-     * spread the disease at a reduced rate
-     * ({@link Disease#getExposedTransmissionRate()}).</p>
-     *
-     * @param grid the working copy of the grid
-     */
     /**
      * Phase 2 – infected (and optionally exposed) cells try to transmit to
      * susceptible, vaccinated, and masked cells within their influence radius.
@@ -223,9 +255,11 @@ public class Grid implements Serializable {
             for (int c = 0; c < width; c++) {
                 CellState st = grid[r][c].getState();
                 if (st == CellState.INFECTED) {
-                    spreadRate[r][c] = disease.getTransmissionRate();
+                    double zoneMultiplier = grid[r][c].getZoneType().getTransmissionMultiplier();
+                    spreadRate[r][c] = disease.getTransmissionRate() * zoneMultiplier;
                 } else if (st == CellState.EXPOSED && disease.isContagiousInExposed()) {
-                    spreadRate[r][c] = disease.getExposedTransmissionRate();
+                    double zoneMultiplier = grid[r][c].getZoneType().getTransmissionMultiplier();
+                    spreadRate[r][c] = disease.getExposedTransmissionRate() * zoneMultiplier;
                 }
                 // else 0.0 — not a spreader (EMPTY, SUSC, VACC, MASKED-healthy, etc.)
             }
