@@ -3,6 +3,7 @@ package healthradar.view;
 import healthradar.model.Cell;
 import healthradar.model.CellState;
 import healthradar.model.Grid;
+import healthradar.model.ZoneType;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -31,14 +32,22 @@ public class GridView extends Canvas {
 
     // ── Colour palette ────────────────────────────────────────────────────────
 
-    private static final Color COLOR_EMPTY       = Color.rgb(240, 240, 240);
     private static final Color COLOR_SUSCEPTIBLE = Color.rgb(100, 160, 220);
     private static final Color COLOR_VACCINATED  = Color.rgb(138,  43, 226); // purple
     private static final Color COLOR_EXPOSED     = Color.rgb(255, 165,  30);
     private static final Color COLOR_INFECTED    = Color.rgb(210,  50,  50);
     private static final Color COLOR_RECOVERED   = Color.rgb( 60, 180,  75);
     private static final Color COLOR_DEAD        = Color.rgb(100, 100, 100);
-    private static final Color COLOR_GRID_LINE   = Color.rgb(200, 200, 200);
+
+    private static final Color COLOR_ZONE_EMPTY_SPACE = Color.WHITE;
+    private static final Color COLOR_ZONE_RESIDENTIAL = Color.rgb(188, 166, 231);
+    private static final Color COLOR_ZONE_TRANSPORT   = Color.rgb(200, 200, 200); // Gris
+    private static final Color COLOR_ZONE_COMMERCIAL  = Color.rgb(173, 216, 230); // Bleu clair
+    private static final Color COLOR_ZONE_WORK    = Color.rgb(74, 67, 199); // Orange
+    private static final Color COLOR_ZONE_EDU    = Color.rgb(255, 200, 100); // Orange
+    private static final Color COLOR_ZONE_HEALTHCARE  = Color.rgb(144, 238, 144); // Vert
+    
+    private static final Color COLOR_GRID_LINE = Color.rgb(220, 220, 220);
 
     // ── State ─────────────────────────────────────────────────────────────────
 
@@ -84,28 +93,37 @@ public class GridView extends Canvas {
         double h = getHeight();
 
         // Background
-        gc.setFill(COLOR_EMPTY);
+        gc.setFill(Color.WHITE);
         gc.fillRect(0, 0, w, h);
 
         // Cells
         for (int r = 0; r < grid.getHeight(); r++) {
             for (int c = 0; c < grid.getWidth(); c++) {
-                Cell cell = grid.getCell(r, c);
-                Color fill = stateColor(cell.getState());
-                gc.setFill(fill);
-                gc.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-                // Draw a small white dot on masked cells (mask indicator)
-                if (cell.isMasked() && cell.isAlive() && cellSize >= 6) {
-                    gc.setFill(Color.WHITE);
-                    double d = Math.max(2, cellSize * 0.25);
-                    gc.fillOval(c * cellSize + cellSize - d - 1,
-                                r * cellSize + 1, d, d);
+                Cell cell = grid.getCell(r, c);double x = c * cellSize;
+                double y = r * cellSize;
+
+                gc.setFill(getZoneColor(cell.getZoneType()));
+                gc.fillRect(x, y, cellSize, cellSize);
+
+                if (cell.getState() != CellState.EMPTY) {
+                    gc.setFill(stateColor(cell.getState()));
+                    
+                    double margin = cellSize * 0.15;
+                    double circleSize = cellSize - (margin * 2);
+                    
+                    gc.fillOval(x + margin, y + margin, circleSize, circleSize);
+
+                    if (cell.isMasked() && cell.isAlive()) {
+                        gc.setStroke(Color.BLACK);
+                        gc.setLineWidth(cellSize * 0.1);
+                        gc.strokeOval(x + margin, y + margin, circleSize, circleSize);
+                    }
                 }
             }
         }
 
         // Grid lines (only for large enough cells)
-        if (showGridLines && cellSize >= 4) {
+        if (showGridLines && cellSize >= 5) {
             gc.setStroke(COLOR_GRID_LINE);
             gc.setLineWidth(0.5);
             for (int c = 0; c <= grid.getWidth(); c++)
@@ -150,6 +168,31 @@ public class GridView extends Canvas {
         gc.setLineWidth(2);
         gc.strokeRect(c1 * cellSize, r1 * cellSize,
                 (c2 - c1 + 1) * cellSize, (r2 - r1 + 1) * cellSize);
+    }
+
+    private Color getZoneColor(ZoneType type) {
+        return switch (type) {
+            case RESIDENTIAL -> COLOR_ZONE_RESIDENTIAL;
+            case EMPTY_SPACE -> COLOR_ZONE_EMPTY_SPACE;
+            case TRANSPORT   -> COLOR_ZONE_TRANSPORT;
+            case COMMERCIAL  -> COLOR_ZONE_COMMERCIAL;
+            case WORK -> COLOR_ZONE_WORK;
+            case EDUCATION -> COLOR_ZONE_EDU;
+            case HEALTHCARE  -> COLOR_ZONE_HEALTHCARE;
+            default          -> Color.WHITE;
+        };
+    }
+
+    public static Color stateColor(CellState state) {
+        return switch (state) {
+            case SUSCEPTIBLE -> COLOR_SUSCEPTIBLE;
+            case VACCINATED  -> COLOR_VACCINATED;
+            case EXPOSED     -> COLOR_EXPOSED;
+            case INFECTED    -> COLOR_INFECTED;
+            case RECOVERED   -> COLOR_RECOVERED;
+            case DEAD        -> COLOR_DEAD;
+            default          -> Color.TRANSPARENT;
+        };
     }
 
     // ── Coordinate conversion ─────────────────────────────────────────────────
@@ -214,24 +257,4 @@ public class GridView extends Canvas {
 
     /** @param dragStartCol drag start column */
     public void setDragStartCol(int dragStartCol) { this.dragStartCol = dragStartCol; }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /**
-     * Returns the display colour for a given {@link CellState}.
-     *
-     * @param state the cell state
-     * @return corresponding JavaFX Color
-     */
-    public static Color stateColor(CellState state) {
-        return switch (state) {
-            case SUSCEPTIBLE -> COLOR_SUSCEPTIBLE;
-            case VACCINATED  -> COLOR_VACCINATED;
-            case EXPOSED     -> COLOR_EXPOSED;
-            case INFECTED    -> COLOR_INFECTED;
-            case RECOVERED   -> COLOR_RECOVERED;
-            case DEAD        -> COLOR_DEAD;
-            default          -> COLOR_EMPTY;
-        };
-    }
 }

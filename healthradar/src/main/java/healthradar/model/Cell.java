@@ -52,6 +52,8 @@ public class Cell implements Serializable {
      */
     private boolean masked = false;
 
+    private ZoneType zoneType;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     /**
@@ -60,8 +62,9 @@ public class Cell implements Serializable {
      * @param state           initial state
      * @param rng             random number generator shared by the simulation
      */
-    public Cell(CellState state, Random rng) {
+    public Cell(CellState state, ZoneType zoneType, Random rng) {
         this.state = state;
+        this.zoneType = zoneType;
         this.stateAge = 0;
         // Personal resistance drawn from a normal distribution, clamped to [0,0.6]
         this.resistance = Math.max(0, Math.min(0.6, rng.nextGaussian() * 0.1 + 0.2));
@@ -74,6 +77,7 @@ public class Cell implements Serializable {
      */
     public Cell() {
         this.state = CellState.EMPTY;
+        this.zoneType = ZoneType.EMPTY_SPACE;
         this.stateAge = 0;
         this.resistance = 0;
         this.moveProbability = 0;
@@ -112,6 +116,13 @@ public class Cell implements Serializable {
         this.moveProbability = Math.max(0.1, Math.min(0.4, p));
     }
 
+    public void setStateAge(int a) {
+        this.stateAge = Math.max(0, a);
+    }
+
+    public ZoneType getZoneType() { return zoneType; }
+    public void setZoneType(ZoneType zoneType) { this.zoneType = zoneType; }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /** @return true if the cell is occupied by a person (not EMPTY or DEAD) */
@@ -148,6 +159,7 @@ public class Cell implements Serializable {
     public Cell copy() {
         Cell c = new Cell();
         c.state = this.state;
+        c.zoneType = this.zoneType;
         c.stateAge = this.stateAge;
         c.resistance = this.resistance;
         c.moveProbability = this.moveProbability;

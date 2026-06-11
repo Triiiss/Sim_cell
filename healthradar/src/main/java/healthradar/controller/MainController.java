@@ -75,6 +75,7 @@ public class MainController {
     private Slider     speedSlider;
     private ComboBox<String> diseaseCombo;
     private ComboBox<String> paintStateCombo;
+    private ComboBox<ZoneType> zoneTypeCombo;
 
     // ── Disease presets ───────────────────────────────────────────────────────
 
@@ -225,6 +226,7 @@ public class MainController {
         ToggleButton brushBtn  = modeToggle("Brush",  EditMode.BRUSH,      modeGroup);
         ToggleButton zoneBtn   = modeToggle("Zone",   EditMode.ZONE,        modeGroup);
         ToggleButton indivBtn  = modeToggle("Individual", EditMode.INDIVIDUAL, modeGroup);
+        ToggleButton zoneTypeBtn = modeToggle("Zone Type", EditMode.ZONETYPE, modeGroup);
         brushBtn.setSelected(true);
 
         // ── Paint state selector ──────────────────────────────────────────────
@@ -234,7 +236,13 @@ public class MainController {
         paintStateCombo.setValue("Susceptible");
         paintStateCombo.setOnAction(e -> onPaintStateSelected());
 
-        // ── Save / Load ───────────────────────────────────────────────────────
+        // ── Zone Type selector ────────────────────────────────────────────────
+        Label zoneTypeLbl = whiteLabel("Zone:"); // <── AJOUT D'UN LABEL POUR LE MENU
+        zoneTypeCombo = new ComboBox<>();
+        zoneTypeCombo.getItems().addAll(ZoneType.values());
+        zoneTypeCombo.setValue(ZoneType.RESIDENTIAL);
+        
+        
         // ── Mask toggle ───────────────────────────────────────────────────────
         ToggleButton maskBtn = new ToggleButton("Mask");
         maskBtn.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
@@ -260,15 +268,17 @@ public class MainController {
         printBtn.setOnAction(e -> exportChart());
 
         bar.getChildren().addAll(
-                playBtn, pauseBtn, stepBtn, resetBtn,
+            playBtn, pauseBtn, stepBtn, resetBtn,
                 new Separator(Orientation.VERTICAL),
                 speedLbl, speedSlider,
                 new Separator(Orientation.VERTICAL),
                 diseaseLbl, diseaseCombo,
                 new Separator(Orientation.VERTICAL),
-                modeLbl, brushBtn, zoneBtn, indivBtn,
+                modeLbl, brushBtn, zoneBtn, indivBtn, zoneTypeBtn,
                 new Separator(Orientation.VERTICAL),
                 paintLbl, paintStateCombo,
+                new Separator(Orientation.VERTICAL),
+                zoneTypeLbl, zoneTypeCombo,
                 maskBtn,
                 new Separator(Orientation.VERTICAL),
                 saveBtn, loadBtn,
@@ -406,26 +416,21 @@ public class MainController {
      * Handles a mouse-pressed event on the grid canvas.
      *
      * @param e the mouse event
-     */private void onMousePressed(MouseEvent e) {
+     */
+    private void onMousePressed(MouseEvent e) {
         int row = gridView.pixelToRow(e.getY());
         int col = gridView.pixelToCol(e.getX());
         if (row < 0 || col < 0) return;
 
         switch (editMode) {
             case BRUSH, INDIVIDUAL -> {
-                // 1. Si on n'est PAS en mode masque, ou si on veut peindre un état ET mettre un masque,
-                // on applique d'abord l'état sélectionné (ex: Susceptible, Infected...)
                 if (!maskMode) {
                     grid.setCell(row, col, paintState);
                 } else {
-                    // Si le masque est activé, on peut aussi vouloir appliquer l'état sélectionné
-                    // (Sauf si l'état sélectionné est "Empty", auquel cas mettre un masque n'a pas de sens)
                     if (paintState != CellState.EMPTY) {
                         grid.setCell(row, col, paintState);
                     }
                 }
-
-                // 2. Ensuite, si le mode masque est activé, on applique ou toggle le masque
                 if (maskMode) {
                     var cell = grid.getCell(row, col);
                     if (cell != null && cell.isAlive()) {
@@ -437,6 +442,14 @@ public class MainController {
             case ZONE -> {
                 gridView.setDragStartRow(row);
                 gridView.setDragStartCol(col);
+            }
+            case ZONETYPE -> { // <-- Nouveau cas
+                var cell = grid.getCell(row, col);
+                ZoneType selectedZone = zoneTypeCombo.getValue();
+                if (cell != null && selectedZone != null) {
+                    cell.setZoneType(selectedZone);
+                }
+                gridView.redraw();
             }
         }
     }
@@ -472,6 +485,14 @@ public class MainController {
             }
             case ZONE -> gridView.drawZoneSelection(row, col);
             case INDIVIDUAL -> { /* handled on press only */ }
+            case ZONETYPE -> { // <-- Nouveau cas
+                var cell = grid.getCell(row, col);
+                ZoneType selectedZone = zoneTypeCombo.getValue();
+                if (cell != null && selectedZone != null) {
+                    cell.setZoneType(selectedZone);
+                }
+                gridView.redraw();
+            }
         }
     }
 /**
