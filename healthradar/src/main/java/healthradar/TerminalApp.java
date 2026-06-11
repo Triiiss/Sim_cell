@@ -626,8 +626,8 @@ public class TerminalApp {
     /** Speed configuration. */
     private void changeSpeed() {
         System.out.println();
-        stepDelayMs = readInt("  Step delay ms  50-5000  (current=" + stepDelayMs + ",  50=fast  1000=slow): ",
-                stepDelayMs, 50, 5000);
+        stepDelayMs = readInt("  Step delay ms  50-10000  (current=" + stepDelayMs + ",  50=fast  10000=very slow): ",
+                stepDelayMs, 50, 10000);
         ok("Speed: " + stepDelayMs + " ms/step");
         waitEnter();
     }

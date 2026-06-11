@@ -62,7 +62,7 @@ For HealthRadar, the chosen context is disease propagation in a city:
   - pause;
   - step;
   - reset;
-  - speed control.
+  - step-delay control from 50 ms to 10 seconds.
 - Live statistics and chart display.
 - Export of statistics charts to PNG.
 - Binary save/load of simulation state in `.hrs` files.
