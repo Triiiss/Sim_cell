@@ -120,15 +120,31 @@ public class MainController {
 
         // ── Top toolbar ───────────────────────────────────────────────────────
         HBox toolbar = buildToolbar();
-
-        // ── Centre: scrollable grid canvas ───────────────────────────────────
+// ── Centre: scrollable grid canvas ───────────────────────────────────
         ScrollPane scrollPane = new ScrollPane(gridView);
-        scrollPane.setStyle("-fx-background-color: #12122a;");
-        scrollPane.setFitToWidth(false);
-        scrollPane.setFitToHeight(false);
+        scrollPane.setStyle("-fx-background-color: #a7a7a8; -fx-background: #d4d2d2;");
+        scrollPane.setFitToWidth(true);   
+        scrollPane.setFitToHeight(true);  
+        
+        scrollPane.setPannable(false);     
+
+        gridView.addEventHandler(MouseEvent.MOUSE_DRAGGED, e -> {
+            if (e.isMiddleButtonDown()) {
+                scrollPane.setPannable(true);
+            }
+        });
+        gridView.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
+            scrollPane.setPannable(false);
+        });
 
         // ── Right sidebar ────────────────────────────────────────────────────
-        VBox sidebar = buildSidebar();
+        VBox sidebarContent = buildSidebar(); 
+        
+        ScrollPane sidebarScrollPane = new ScrollPane(sidebarContent);
+        sidebarScrollPane.setStyle("-fx-background-color: #16213e; -fx-background: #16213e;");
+        sidebarScrollPane.setFitToWidth(true);
+        sidebarScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sidebarScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
         // ── Status bar ────────────────────────────────────────────────────────
         statusLabel = new Label("Ready – draw cells, then press Play.");
@@ -142,7 +158,7 @@ public class MainController {
         BorderPane root = new BorderPane();
         root.setTop(toolbar);
         root.setCenter(scrollPane);
-        root.setRight(sidebar);
+        root.setRight(sidebarScrollPane); // <── ON MET LE SCROLLPANE ICI AU LIEU DU VBOX
         root.setBottom(statusBar);
         root.setStyle("-fx-background-color: #12122a;");
 
@@ -272,8 +288,9 @@ public class MainController {
      */
     private VBox buildSidebar() {
         VBox box = new VBox(10);
-        box.setPadding(new Insets(10));
-        box.setPrefWidth(300);
+        box.setPadding(new Insets(10, 20, 10, 10));
+        box.setPrefWidth(350);
+        box.setMaxWidth(Double.MAX_VALUE);
         box.setStyle("-fx-background-color: #16213e;");
 
         // ── Stats panel ───────────────────────────────────────────────────────
