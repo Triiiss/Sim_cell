@@ -60,6 +60,10 @@ public class GridView extends Canvas {
     /** Whether to draw grid lines between cells. */
     private boolean showGridLines = true;
 
+    /** Selected cell shown with a persistent highlight. */
+    private int selectedRow = -1;
+    private int selectedCol = -1;
+
     // ── Drag selection for zone mode ──────────────────────────────────────────
 
     /** Row where the drag started (zone mode). */
@@ -131,6 +135,8 @@ public class GridView extends Canvas {
             for (int r = 0; r <= grid.getHeight(); r++)
                 gc.strokeLine(0, r * cellSize, w, r * cellSize);
         }
+
+        drawSelectedCell(gc);
     }
 
     /**
@@ -148,6 +154,15 @@ public class GridView extends Canvas {
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(2);
         gc.strokeRect(col * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2);
+    }
+
+    private void drawSelectedCell(GraphicsContext gc) {
+        if (selectedRow < 0 || selectedCol < 0) return;
+        if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) return;
+        gc.setStroke(Color.rgb(255, 238, 120));
+        gc.setLineWidth(Math.max(2, cellSize * 0.18));
+        gc.strokeRect(selectedCol * cellSize + 1, selectedRow * cellSize + 1,
+                cellSize - 2, cellSize - 2);
     }
 
     /**
@@ -230,6 +245,11 @@ public class GridView extends Canvas {
 
     /** @return current pixel size of one cell */
     public double getCellSize() { return cellSize; }
+
+    public void setSelectedCell(int row, int col) {
+        this.selectedRow = row;
+        this.selectedCol = col;
+    }
 
     /**
      * Changes the cell size and resizes the canvas accordingly.

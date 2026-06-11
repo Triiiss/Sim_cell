@@ -78,6 +78,16 @@ public class MainController {
     private ComboBox<String> diseaseCombo;
     private ComboBox<String> paintStateCombo;
     private ComboBox<ZoneType> zoneTypeCombo;
+    private Label inspectorPositionValue;
+    private Label inspectorStateValue;
+    private Label inspectorZoneValue;
+    private Label inspectorAgeValue;
+    private Label inspectorResistanceValue;
+    private Label inspectorMoveValue;
+    private Label inspectorMaskValue;
+    private Label inspectorRiskValue;
+    private int selectedRow = -1;
+    private int selectedCol = -1;
 
     // ── Disease presets ───────────────────────────────────────────────────────
 
@@ -314,6 +324,9 @@ public class MainController {
         box.setMaxWidth(Double.MAX_VALUE);
         box.setStyle("-fx-background-color: #16213e;");
 
+        box.getChildren().add(buildCellInspector());
+        box.getChildren().add(separator());
+
         // ── Stats panel ───────────────────────────────────────────────────────
         box.getChildren().add(statsPanel);
 
@@ -408,6 +421,110 @@ public class MainController {
         return box;
     }
 
+    private VBox buildCellInspector() {
+        VBox panel = new VBox(7);
+        panel.setPadding(new Insets(10));
+        panel.setStyle("-fx-background-color:#0f1b2f; -fx-background-radius:6;");
+
+        Label title = sectionLabel("Cell Inspector");
+        Label hint = new Label("Click a grid cell to inspect its current data.");
+        hint.setTextFill(Color.rgb(170, 190, 205));
+        hint.setFont(Font.font(10));
+
+        inspectorPositionValue = inspectorValue("None");
+        inspectorStateValue = inspectorValue("-");
+        inspectorZoneValue = inspectorValue("-");
+        inspectorAgeValue = inspectorValue("-");
+        inspectorResistanceValue = inspectorValue("-");
+        inspectorMoveValue = inspectorValue("-");
+        inspectorMaskValue = inspectorValue("-");
+        inspectorRiskValue = inspectorValue("-");
+
+        panel.getChildren().addAll(
+                title,
+                hint,
+                inspectorRow("Position", inspectorPositionValue),
+                inspectorRow("State", inspectorStateValue),
+                inspectorRow("Zone", inspectorZoneValue),
+                inspectorRow("State age", inspectorAgeValue),
+                inspectorRow("Resistance", inspectorResistanceValue),
+                inspectorRow("Movement", inspectorMoveValue),
+                inspectorRow("Mask", inspectorMaskValue),
+                inspectorRow("Zone risk", inspectorRiskValue)
+        );
+        return panel;
+    }
+
+    private HBox inspectorRow(String name, Label value) {
+        Label key = new Label(name);
+        key.setTextFill(Color.rgb(145, 165, 185));
+        key.setFont(Font.font("System Bold", 11));
+        key.setMinWidth(92);
+        HBox row = new HBox(8, key, value);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private Label inspectorValue(String text) {
+        Label value = new Label(text);
+        value.setTextFill(Color.WHITE);
+        value.setFont(Font.font("Monospaced", 11));
+        return value;
+    }
+
+    private void updateCellInspector(int row, int col) {
+        if (row < 0 || col < 0 || row >= grid.getHeight() || col >= grid.getWidth()) return;
+        selectedRow = row;
+        selectedCol = col;
+        gridView.setSelectedCell(row, col);
+
+        healthradar.model.Cell cell = grid.getCell(row, col);
+        if (cell == null) return;
+
+        inspectorPositionValue.setText(row + ", " + col);
+        inspectorStateValue.setText(cell.getState().name());
+        inspectorZoneValue.setText(cell.getZoneType().name());
+        inspectorRiskValue.setText(String.format(Locale.ROOT, "x%.2f",
+                cell.getZoneType().getTransmissionMultiplier()));
+
+        if (cell.getState() == CellState.EMPTY) {
+            inspectorAgeValue.setText("-");
+            inspectorResistanceValue.setText("-");
+            inspectorMoveValue.setText("-");
+            inspectorMaskValue.setText("-");
+            return;
+        }
+
+        inspectorAgeValue.setText(String.valueOf(cell.getStateAge()));
+        inspectorResistanceValue.setText(String.format(Locale.ROOT, "%.0f%%",
+                cell.getResistance() * 100));
+        inspectorMoveValue.setText(String.format(Locale.ROOT, "%.0f%%",
+                cell.getMoveProbability() * 100));
+        inspectorMaskValue.setText(cell.isMasked() ? "Yes" : "No");
+    }
+
+    private void refreshSelectedCellInspector() {
+        if (selectedRow >= 0 && selectedCol >= 0) {
+            updateCellInspector(selectedRow, selectedCol);
+        }
+    }
+
+    private void clearCellInspector() {
+        selectedRow = -1;
+        selectedCol = -1;
+        gridView.setSelectedCell(-1, -1);
+
+        if (inspectorPositionValue == null) return;
+        inspectorPositionValue.setText("None");
+        inspectorStateValue.setText("-");
+        inspectorZoneValue.setText("-");
+        inspectorAgeValue.setText("-");
+        inspectorResistanceValue.setText("-");
+        inspectorMoveValue.setText("-");
+        inspectorMaskValue.setText("-");
+        inspectorRiskValue.setText("-");
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Mouse event wiring
     // ─────────────────────────────────────────────────────────────────────────
@@ -463,6 +580,8 @@ public class MainController {
                 gridView.redraw();
             }
         }
+        updateCellInspector(row, col);
+        gridView.redraw();
     }
 
     /**
@@ -492,9 +611,13 @@ public class MainController {
                         cell.setMasked(true); 
                     }
                 }
+                updateCellInspector(row, col);
                 gridView.redraw();
             }
-            case ZONE -> gridView.drawZoneSelection(row, col);
+            case ZONE -> {
+                updateCellInspector(row, col);
+                gridView.drawZoneSelection(row, col);
+            }
             case INDIVIDUAL -> { /* handled on press only */ }
             case ZONETYPE -> { // <-- Nouveau cas
                 var cell = grid.getCell(row, col);
@@ -502,6 +625,7 @@ public class MainController {
                 if (cell != null && selectedZone != null) {
                     cell.setZoneType(selectedZone);
                 }
+                updateCellInspector(row, col);
                 gridView.redraw();
             }
         }
@@ -546,6 +670,7 @@ public class MainController {
         }
         
         gridView.setDragStartRow(-1);
+        updateCellInspector(row, col);
         gridView.redraw();
         
         // Mise à jour du message de statut pour être plus précis
@@ -581,6 +706,7 @@ public class MainController {
         engine.step();
         gridView.redraw();
         statsPanel.refresh();
+        refreshSelectedCellInspector();
         setStatus("Step " + engine.getStepCount());
     }
 
@@ -588,6 +714,7 @@ public class MainController {
     private void resetSimulation() {
         pauseSimulation();
         engine.reset();
+        clearCellInspector();
         gridView.redraw();
         statsPanel.refresh();
         setStatus("Reset. Draw cells and press Play.");
@@ -688,6 +815,7 @@ public class MainController {
         statsPanel.setEngine(engine);
         gridView.redraw();
         statsPanel.refresh();
+        refreshSelectedCellInspector();
         setStatus("Grid randomly populated: " + sCount + " susceptible, " + iCount + " infected.");
     }
 
@@ -725,6 +853,7 @@ public class MainController {
             grid   = engine.getGrid();
             gridView.setGrid(grid);
             statsPanel.setEngine(engine);
+            clearCellInspector();
             gridView.redraw();
             statsPanel.refresh();
             setStatus("Loaded from " + file.getName() + " (step " + engine.getStepCount() + ")");
@@ -932,6 +1061,9 @@ public class MainController {
 
             // ── Toujours : taille cellule + vitesse + sync sliders ────────
             gridView.setCellSize(result.cellSize());
+            if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) {
+                clearCellInspector();
+            }
             stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);
             speedSlider.setValue(result.stepDelayMs());
             stepDelayValueLabel.setText(formatStepDelay(result.stepDelayMs()));
@@ -956,6 +1088,7 @@ public class MainController {
 
             gridView.redraw();
             statsPanel.refresh();
+            refreshSelectedCellInspector();
         });
     }
 
