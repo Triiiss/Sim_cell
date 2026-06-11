@@ -8,6 +8,7 @@ import healthradar.view.EditMode;
 import healthradar.view.GridView;
 import healthradar.view.StatsPanel;
 import javafx.animation.AnimationTimer;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -55,6 +56,7 @@ public class MainController {
     private GridView   gridView;
     private StatsPanel statsPanel;
     private Stage      primaryStage;
+    private ScrollPane gridScrollPane;
 
     // ── Animation loop ────────────────────────────────────────────────────────
 
@@ -76,6 +78,7 @@ public class MainController {
     private Label      statusLabel;
     private Slider     speedSlider;
     private Label      stepDelayValueLabel;
+    private MenuButton delayMenuButton;
     private ComboBox<String> diseaseCombo;
     private ComboBox<String> paintStateCombo;
     private ComboBox<ZoneType> zoneTypeCombo;
@@ -96,6 +99,9 @@ public class MainController {
 
     private static final int MIN_STEP_DELAY_MS = 50;
     private static final int MAX_STEP_DELAY_MS = 10_000;
+    private static final double DEFAULT_CELL_SIZE = 14.0;
+    private static final double MAX_AUTO_CELL_SIZE = 30.0;
+    private double configuredCellSize = DEFAULT_CELL_SIZE;
 
     // ── Random populate sliders ───────────────────────────────────────────────
 
@@ -132,38 +138,37 @@ public class MainController {
         grid   = new Grid(60, 45, false, currentDisease, 0);
         engine = new SimulationEngine(grid);
 
-        gridView   = new GridView(grid, 14);
+        gridView   = new GridView(grid, configuredCellSize);
         statsPanel = new StatsPanel(engine);
 
         // ── Top toolbar ───────────────────────────────────────────────────────
         HBox toolbar = buildToolbar();
         VBox toolRail = buildToolRail();
 // ── Centre: scrollable grid canvas ───────────────────────────────────
-        ScrollPane scrollPane = new ScrollPane(gridView);
-        scrollPane.getStyleClass().add("grid-scroll");
-        scrollPane.setFitToWidth(true);   
-        scrollPane.setFitToHeight(true);  
+        StackPane gridViewport = new StackPane(gridView);
+        gridViewport.getStyleClass().add("grid-viewport");
+        gridScrollPane = new ScrollPane(gridViewport);
+        gridScrollPane.getStyleClass().add("grid-scroll");
+        gridScrollPane.setFitToWidth(true);
+        gridScrollPane.setFitToHeight(true);
+        gridScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        gridScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         
-        scrollPane.setPannable(false);     
+        gridScrollPane.setPannable(false);
 
         gridView.addEventHandler(MouseEvent.MOUSE_DRAGGED, e -> {
             if (e.isMiddleButtonDown()) {
-                scrollPane.setPannable(true);
+                gridScrollPane.setPannable(true);
             }
         });
         gridView.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
-            scrollPane.setPannable(false);
+            gridScrollPane.setPannable(false);
         });
-        BorderPane gridSurface = buildGridSurface(scrollPane);
+        setupResponsiveGrid();
+        BorderPane gridSurface = buildGridSurface(gridScrollPane);
 
         // ── Right sidebar ────────────────────────────────────────────────────
         VBox sidebarContent = buildSidebar(); 
-        
-        ScrollPane sidebarScrollPane = new ScrollPane(sidebarContent);
-        sidebarScrollPane.getStyleClass().add("right-scroll");
-        sidebarScrollPane.setFitToWidth(true);
-        sidebarScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        sidebarScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
         // ── Status bar ────────────────────────────────────────────────────────
         statusLabel = new Label("Ready – draw cells, then press Play.");
@@ -178,7 +183,7 @@ public class MainController {
         root.setTop(toolbar);
         root.setLeft(toolRail);
         root.setCenter(gridSurface);
-        root.setRight(sidebarScrollPane);
+        root.setRight(sidebarContent);
         root.setBottom(statusBar);
         root.getStyleClass().add("app-root");
 
@@ -198,6 +203,7 @@ public class MainController {
         stage.setScene(scene);
         stage.show();
 
+        refitGridToViewport();
         gridView.redraw();
     }
 
@@ -235,19 +241,7 @@ public class MainController {
         resetBtn.setOnAction(e -> resetSimulation());
 
         // ── Speed ─────────────────────────────────────────────────────────────
-        Label speedLbl = whiteLabel("Delay:");
-        speedSlider = new Slider(MIN_STEP_DELAY_MS, MAX_STEP_DELAY_MS, currentStepDelayMs());
-        speedSlider.setPrefWidth(140);
-        speedSlider.setMajorTickUnit(1000);
-        speedSlider.setBlockIncrement(250);
-        speedSlider.setShowTickMarks(true);
-        speedSlider.setTooltip(new Tooltip("Delay between automatic simulation steps. Higher means slower."));
-        stepDelayValueLabel = whiteLabel(formatStepDelay(currentStepDelayMs()));
-        speedSlider.valueProperty().addListener((obs, o, n) -> {
-            int delayMs = n.intValue();
-            stepIntervalNanos = delayMs * 1_000_000L;
-            stepDelayValueLabel.setText(formatStepDelay(delayMs));
-        });
+        MenuButton delayMenu = buildDelayMenu();
 
         // ── Disease selector ──────────────────────────────────────────────────
         Label diseaseLbl = whiteLabel("Disease:");
@@ -310,7 +304,7 @@ public class MainController {
                 brand,
                 playBtn, pauseBtn, stepBtn, resetBtn,
                 new Separator(Orientation.VERTICAL),
-                speedLbl, speedSlider, stepDelayValueLabel,
+                delayMenu,
                 new Separator(Orientation.VERTICAL),
                 diseaseLbl, diseaseCombo,
                 spacer,
@@ -333,15 +327,19 @@ public class MainController {
 
         Label title = new Label("Draw tools");
         title.getStyleClass().add("panel-title");
-        Label hint = new Label("Choose what the mouse does on the grid.");
+        Label hint = new Label("Choose a map editing mode.");
         hint.getStyleClass().add("muted-label");
         hint.setWrapText(true);
 
         ToggleGroup modeGroup = new ToggleGroup();
         ToggleButton brushBtn = modeToggle("Brush cells", EditMode.BRUSH, modeGroup);
-        ToggleButton zoneBtn = modeToggle("Fill area", EditMode.ZONE, modeGroup);
+        ToggleButton zoneBtn = modeToggle("Fill rectangle", EditMode.ZONE, modeGroup);
         ToggleButton indivBtn = modeToggle("Single cell", EditMode.INDIVIDUAL, modeGroup);
-        ToggleButton zoneTypeBtn = modeToggle("Paint zones", EditMode.ZONETYPE, modeGroup);
+        ToggleButton zoneTypeBtn = modeToggle("Zone layer", EditMode.ZONETYPE, modeGroup);
+        brushBtn.setTooltip(new Tooltip("Paint the selected health state while dragging."));
+        zoneBtn.setTooltip(new Tooltip("Drag a rectangle and fill it with the selected health state."));
+        indivBtn.setTooltip(new Tooltip("Edit one cell per click."));
+        zoneTypeBtn.setTooltip(new Tooltip("Paint the urban zone layer. Zones affect transmission risk without changing health state."));
         brushBtn.setSelected(true);
         makeFullWidth(brushBtn, zoneBtn, indivBtn, zoneTypeBtn);
 
@@ -355,6 +353,7 @@ public class MainController {
         zoneTypeCombo.getItems().addAll(ZoneType.values());
         zoneTypeCombo.setValue(ZoneType.RESIDENTIAL);
         zoneTypeCombo.setMaxWidth(Double.MAX_VALUE);
+        zoneTypeCombo.setTooltip(new Tooltip("Zone layer used by the Zone layer tool."));
 
         ToggleButton maskBtn = new ToggleButton("Mask paint mode");
         maskBtn.setMaxWidth(Double.MAX_VALUE);
@@ -371,7 +370,7 @@ public class MainController {
                 hint,
                 toolGroup("Mode", brushBtn, zoneBtn, indivBtn, zoneTypeBtn),
                 toolGroup("Cell state", paintStateCombo),
-                toolGroup("Urban zone", zoneTypeCombo),
+                toolGroup("Zone risk layer", zoneTypeCombo),
                 toolGroup("Protection", maskBtn)
         );
         return rail;
@@ -405,6 +404,36 @@ public class MainController {
         surface.setTop(header);
         BorderPane.setMargin(scrollPane, new Insets(0, 14, 14, 14));
         return surface;
+    }
+
+    private void setupResponsiveGrid() {
+        if (gridScrollPane == null) return;
+        gridScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) ->
+                fitGridToViewport(newBounds));
+    }
+
+    private void refitGridToViewport() {
+        if (gridScrollPane == null) {
+            gridView.setCellSize(configuredCellSize);
+            return;
+        }
+        fitGridToViewport(gridScrollPane.getViewportBounds());
+    }
+
+    private void fitGridToViewport(Bounds viewport) {
+        if (viewport == null || grid == null || grid.getWidth() <= 0 || grid.getHeight() <= 0) return;
+        double availableWidth = viewport.getWidth() - 10;
+        double availableHeight = viewport.getHeight() - 10;
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+
+        double fitCellSize = Math.min(availableWidth / grid.getWidth(), availableHeight / grid.getHeight());
+        if (Double.isNaN(fitCellSize) || Double.isInfinite(fitCellSize)) return;
+
+        double targetCellSize = Math.max(configuredCellSize, fitCellSize);
+        targetCellSize = Math.max(4.0, Math.min(MAX_AUTO_CELL_SIZE, targetCellSize));
+        if (Math.abs(gridView.getCellSize() - targetCellSize) > 0.2) {
+            gridView.setCellSize(targetCellSize);
+        }
     }
 
     private VBox toolGroup(String title, Node... controls) {
@@ -454,7 +483,8 @@ public class MainController {
     private VBox buildSidebar() {
         VBox box = new VBox(12);
         box.setPadding(new Insets(12, 18, 12, 12));
-        box.setPrefWidth(350);
+        box.setMinWidth(340);
+        box.setPrefWidth(360);
         box.setMaxWidth(Double.MAX_VALUE);
         box.getStyleClass().add("side-panel");
 
@@ -470,15 +500,25 @@ public class MainController {
         header.setPadding(new Insets(0, 0, 4, 0));
         box.getChildren().add(header);
 
-        box.getChildren().add(buildCellInspector());
-        box.getChildren().add(separator());
+        TabPane sideTabs = new TabPane();
+        sideTabs.getStyleClass().add("side-tabs");
+        sideTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        VBox.setVgrow(sideTabs, Priority.ALWAYS);
+
+        VBox monitorTab = new VBox(10);
+        monitorTab.setPadding(new Insets(0, 4, 0, 0));
+        VBox diseaseTab = new VBox(10);
+        diseaseTab.setPadding(new Insets(0, 4, 0, 0));
+        VBox setupTab = new VBox(10);
+        setupTab.setPadding(new Insets(0, 4, 0, 0));
+
+        monitorTab.getChildren().add(buildCellInspector());
 
         // ── Stats panel ───────────────────────────────────────────────────────
         VBox statsBox = sidebarSectionBox();
+        statsBox.getChildren().add(sectionLabel("Live Statistics"));
         statsBox.getChildren().add(statsPanel);
-        box.getChildren().add(sectionPane("Live statistics", statsBox, true));
-
-        box.getChildren().add(separator());
+        monitorTab.getChildren().add(statsBox);
 
         // ── Disease parameters ────────────────────────────────────────────────
         VBox diseaseBox = sidebarSectionBox();
@@ -487,6 +527,7 @@ public class MainController {
         airborneCheck = new CheckBox("Airborne transmission");
         airborneCheck.setTextFill(Color.WHITE);
         airborneCheck.setFont(Font.font(12));
+        airborneCheck.setSelected(currentDisease.isAirborne());
         airborneCheck.setOnAction(e -> applyDiseaseParams());
 
         transmissionSlider = labelledSlider("Transmission rate  (0.01–1.0)",
@@ -510,7 +551,7 @@ public class MainController {
         immunitySlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
 
         diseaseBox.getChildren().add(airborneCheck);
-        box.getChildren().add(sectionPane("Disease", diseaseBox, true));
+        diseaseTab.getChildren().add(diseaseBox);
 
         VBox protectionBox = sidebarSectionBox();
         protectionBox.getChildren().add(sectionLabel("Vaccine & Mask Parameters"));
@@ -528,9 +569,7 @@ public class MainController {
         maskInwardSlider     .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         maskOutwardSlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
 
-        box.getChildren().add(sectionPane("Protection", protectionBox, true));
-
-        box.getChildren().add(separator());
+        diseaseTab.getChildren().add(protectionBox);
 
         // ── Random populate ───────────────────────────────────────────────────
         VBox populationBox = sidebarSectionBox();
@@ -559,9 +598,7 @@ public class MainController {
         });
 
         populationBox.getChildren().addAll(populateBtn, clearBtn);
-        box.getChildren().add(sectionPane("Population", populationBox, true));
-
-        box.getChildren().add(separator());
+        setupTab.getChildren().add(populationBox);
 
         // ── Toroidal toggle ───────────────────────────────────────────────────
         VBox optionsBox = sidebarSectionBox();
@@ -575,9 +612,27 @@ public class MainController {
             setStatus("Topology: " + (grid.isToroidal() ? "Toroidal" : "Bounded"));
         });
         optionsBox.getChildren().add(toroidalCheck);
-        box.getChildren().add(sectionPane("Options", optionsBox, false));
+        setupTab.getChildren().add(optionsBox);
+
+        sideTabs.getTabs().addAll(
+                sidebarTab("Disease", diseaseTab),
+                sidebarTab("Monitor", monitorTab),
+                sidebarTab("Setup", setupTab)
+        );
+        box.getChildren().add(sideTabs);
 
         return box;
+    }
+
+    private Tab sidebarTab(String title, Node content) {
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.getStyleClass().add("right-scroll");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        Tab tab = new Tab(title, scrollPane);
+        tab.setClosable(false);
+        return tab;
     }
 
     private VBox sidebarSectionBox() {
@@ -1032,6 +1087,7 @@ public class MainController {
             engine = SimulationSerializer.load(file.toPath());
             grid   = engine.getGrid();
             gridView.setGrid(grid);
+            refitGridToViewport();
             statsPanel.setEngine(engine);
             clearCellInspector();
             gridView.redraw();
@@ -1077,6 +1133,69 @@ public class MainController {
         return l;
     }
 
+    private MenuButton buildDelayMenu() {
+        delayMenuButton = new MenuButton("Delay: " + formatStepDelay(currentStepDelayMs()));
+        delayMenuButton.getStyleClass().add("delay-menu");
+        delayMenuButton.setTooltip(new Tooltip("Delay between automatic steps. Higher means slower."));
+
+        Label caption = new Label("Step delay");
+        caption.getStyleClass().add("menu-caption");
+        stepDelayValueLabel = new Label(formatStepDelay(currentStepDelayMs()));
+        stepDelayValueLabel.getStyleClass().add("menu-value");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, caption, spacer, stepDelayValueLabel);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        speedSlider = new Slider(MIN_STEP_DELAY_MS, MAX_STEP_DELAY_MS, currentStepDelayMs());
+        speedSlider.setPrefWidth(190);
+        speedSlider.setShowTickMarks(false);
+        speedSlider.setShowTickLabels(false);
+        speedSlider.setMajorTickUnit(1000);
+        speedSlider.setBlockIncrement(250);
+        speedSlider.valueProperty().addListener((obs, oldValue, newValue) ->
+                setStepDelayMs(newValue.intValue()));
+
+        VBox content = new VBox(8, header, speedSlider);
+        content.setPadding(new Insets(8, 10, 8, 10));
+        CustomMenuItem sliderItem = new CustomMenuItem(content, false);
+
+        delayMenuButton.getItems().addAll(
+                sliderItem,
+                new SeparatorMenuItem(),
+                delayPresetItem(50),
+                delayPresetItem(200),
+                delayPresetItem(500),
+                delayPresetItem(1000),
+                delayPresetItem(2000),
+                delayPresetItem(5000),
+                delayPresetItem(10000)
+        );
+
+        return delayMenuButton;
+    }
+
+    private MenuItem delayPresetItem(int delayMs) {
+        MenuItem item = new MenuItem(formatStepDelay(delayMs));
+        item.setOnAction(e -> setStepDelayMs(delayMs));
+        return item;
+    }
+
+    private void setStepDelayMs(int delayMs) {
+        int clamped = Math.max(MIN_STEP_DELAY_MS, Math.min(MAX_STEP_DELAY_MS, delayMs));
+        stepIntervalNanos = clamped * 1_000_000L;
+        if (stepDelayValueLabel != null) {
+            stepDelayValueLabel.setText(formatStepDelay(clamped));
+        }
+        if (delayMenuButton != null) {
+            delayMenuButton.setText("Delay: " + formatStepDelay(clamped));
+        }
+        if (speedSlider != null && Math.abs(speedSlider.getValue() - clamped) > 0.5) {
+            speedSlider.setValue(clamped);
+        }
+    }
+
     private int currentStepDelayMs() {
         return (int) Math.max(MIN_STEP_DELAY_MS, Math.min(MAX_STEP_DELAY_MS,
                 Math.round(stepIntervalNanos / 1_000_000.0)));
@@ -1117,9 +1236,21 @@ public class MainController {
         tb.selectedProperty().addListener((obs, o, selected) -> {
             if (selected) {
                 editMode = mode;
+                if (statusLabel != null) {
+                    setStatus(modeStatus(mode));
+                }
             }
         });
         return tb;
+    }
+
+    private String modeStatus(EditMode mode) {
+        return switch (mode) {
+            case BRUSH -> "Brush mode: drag to paint health states.";
+            case ZONE -> "Fill rectangle mode: drag an area, then release.";
+            case INDIVIDUAL -> "Single cell mode: click one cell at a time.";
+            case ZONETYPE -> "Zone layer mode: paint urban zone risk without changing health state.";
+        };
     }
 
     /**
@@ -1233,7 +1364,7 @@ public class MainController {
                 currentDisease,
                 curS, curI,
                 (int)(stepIntervalNanos / 1_000_000),
-                (int) gridView.getCellSize(),
+                (int) configuredCellSize,
                 false);
 
         ConfigPanel.show(primaryStage, current, result -> {
@@ -1246,6 +1377,7 @@ public class MainController {
                 grid.randomPopulate(result.susceptibleCount(), result.infectedCount());
                 engine = new SimulationEngine(grid);
                 gridView.setGrid(grid);
+                refitGridToViewport();
                 statsPanel.setEngine(engine);
                 setStatus("Grid restarted: " + result.gridWidth() + "×"
                         + result.gridHeight() + "  " + currentDisease.getName());
@@ -1259,6 +1391,7 @@ public class MainController {
                             result.toroidal(), currentDisease, 0);
                     engine = new SimulationEngine(grid);
                     gridView.setGrid(grid);
+                    refitGridToViewport();
                     statsPanel.setEngine(engine);
                     setStatus("Grid resized to " + result.gridWidth() + "×"
                             + result.gridHeight() + " — use Populate to fill it.");
@@ -1271,13 +1404,12 @@ public class MainController {
             }
 
             // ── Toujours : taille cellule + vitesse + sync sliders ────────
-            gridView.setCellSize(result.cellSize());
+            configuredCellSize = result.cellSize();
+            refitGridToViewport();
             if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) {
                 clearCellInspector();
             }
-            stepIntervalNanos = (long)(result.stepDelayMs() * 1_000_000L);
-            speedSlider.setValue(result.stepDelayMs());
-            stepDelayValueLabel.setText(formatStepDelay(result.stepDelayMs()));
+            setStepDelayMs(result.stepDelayMs());
 
             updatingControls = true;
             transmissionSlider   .setValue(result.disease().getTransmissionRate());

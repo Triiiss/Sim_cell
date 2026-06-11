@@ -42,6 +42,11 @@
     -fx-background-color: #0b1120;
 }
 
+.grid-viewport {
+    -fx-background-color: #0b1120;
+    -fx-alignment: center;
+}
+
 .grid-header {
     -fx-padding: 14 16 12 16;
     -fx-background-color: #0b1120;
@@ -104,9 +109,57 @@
 }
 
 .action-button,
-.tool-toggle {
+.tool-toggle,
+.delay-menu {
     -fx-background-radius: 6;
     -fx-cursor: hand;
+}
+
+.delay-menu {
+    -fx-background-color: #1e293b;
+    -fx-border-color: #334155;
+    -fx-border-radius: 6;
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.delay-menu:hover {
+    -fx-background-color: #26364f;
+    -fx-border-color: #38bdf8;
+}
+
+.delay-menu .label {
+    -fx-text-fill: #f8fafc;
+}
+
+.context-menu {
+    -fx-background-color: #111827;
+    -fx-background-radius: 8;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-padding: 6;
+}
+
+.menu-item .label {
+    -fx-text-fill: #e2e8f0;
+}
+
+.menu-item:focused {
+    -fx-background-color: #1e293b;
+}
+
+.menu-caption {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.menu-value {
+    -fx-text-fill: #f8fafc;
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
 }
 
 .tool-toggle {
@@ -122,6 +175,45 @@
 .tool-toggle:selected {
     -fx-background-color: #0ea5e9;
     -fx-text-fill: white;
+}
+
+.side-tabs {
+    -fx-background-color: transparent;
+}
+
+.side-tabs .tab-header-area {
+    -fx-padding: 0 0 7 0;
+}
+
+.side-tabs .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.side-tabs .tab {
+    -fx-background-color: #111827;
+    -fx-background-radius: 7 7 0 0;
+    -fx-border-color: #1f2a3d;
+    -fx-border-radius: 7 7 0 0;
+    -fx-padding: 5 10 5 10;
+}
+
+.side-tabs .tab:selected {
+    -fx-background-color: #0ea5e9;
+    -fx-border-color: #38bdf8;
+}
+
+.side-tabs .tab-label {
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.side-tabs .tab:selected .tab-label {
+    -fx-text-fill: #ffffff;
+}
+
+.side-tabs .tab-content-area {
+    -fx-background-color: transparent;
 }
 
 .combo-box-base {
