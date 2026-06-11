@@ -168,7 +168,7 @@ public class ConfigPanel {
         Label iPctLbl = valueLabel(pctLabel(initI, totalCells));
 
         // Simulation tab
-        Slider delaySlider    = pSlider(50, 2000, current.stepDelayMs());
+        Slider delaySlider    = pSlider(50, 10000, current.stepDelayMs());
         Slider cellSizeSlider = pSlider(4,  24,   current.cellSize());
         Label  delayLbl       = valueLabel(current.stepDelayMs() + " ms");
         Label  cellLbl        = valueLabel(current.cellSize()    + " px");
@@ -354,8 +354,8 @@ public class ConfigPanel {
         VBox box = tabBox();
         box.getChildren().addAll(
                 sectionLabel("Simulation Speed"),
-                rowWithVal("Step delay ms (50–2000):", delay, dLbl),
-                note("50 ms = ~20 steps/sec.  2000 ms = 1 step / 2 sec."),
+                rowWithVal("Step delay ms (50-10000):", delay, dLbl),
+                note("50 ms = very fast. 10000 ms = one step every 10 seconds."),
                 sep(),
                 sectionLabel("Display"),
                 rowWithVal("Cell size px  (4–24):",   cell, cLbl),
