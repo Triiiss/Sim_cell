@@ -60,7 +60,8 @@
 
 .tool-group,
 .section-card,
-.inspector-card {
+.inspector-card,
+.stats-panel {
     -fx-background-color: #111827;
     -fx-background-radius: 8;
     -fx-border-color: #1f2a3d;

@@ -32,22 +32,22 @@ public class GridView extends Canvas {
 
     // ── Colour palette ────────────────────────────────────────────────────────
 
-    private static final Color COLOR_SUSCEPTIBLE = Color.rgb(100, 160, 220);
-    private static final Color COLOR_VACCINATED  = Color.rgb(138,  43, 226); // purple
-    private static final Color COLOR_EXPOSED     = Color.rgb(255, 165,  30);
-    private static final Color COLOR_INFECTED    = Color.rgb(210,  50,  50);
-    private static final Color COLOR_RECOVERED   = Color.rgb( 60, 180,  75);
-    private static final Color COLOR_DEAD        = Color.rgb(100, 100, 100);
+    private static final Color COLOR_SUSCEPTIBLE = Color.rgb( 59, 130, 246);
+    private static final Color COLOR_VACCINATED  = Color.rgb(167, 139, 250);
+    private static final Color COLOR_EXPOSED     = Color.rgb(245, 158,  11);
+    private static final Color COLOR_INFECTED    = Color.rgb(239,  68,  68);
+    private static final Color COLOR_RECOVERED   = Color.rgb( 34, 197,  94);
+    private static final Color COLOR_DEAD        = Color.rgb(100, 116, 139);
 
-    private static final Color COLOR_ZONE_EMPTY_SPACE = Color.WHITE;
-    private static final Color COLOR_ZONE_RESIDENTIAL = Color.rgb(188, 166, 231);
-    private static final Color COLOR_ZONE_TRANSPORT   = Color.rgb(200, 200, 200); // Gris
-    private static final Color COLOR_ZONE_COMMERCIAL  = Color.rgb(173, 216, 230); // Bleu clair
-    private static final Color COLOR_ZONE_WORK    = Color.rgb(74, 67, 199); // Orange
-    private static final Color COLOR_ZONE_EDU    = Color.rgb(255, 200, 100); // Orange
-    private static final Color COLOR_ZONE_HEALTHCARE  = Color.rgb(144, 238, 144); // Vert
+    private static final Color COLOR_ZONE_EMPTY_SPACE = Color.rgb(241, 245, 249);
+    private static final Color COLOR_ZONE_RESIDENTIAL = Color.rgb(219, 234, 254);
+    private static final Color COLOR_ZONE_TRANSPORT   = Color.rgb(203, 213, 225);
+    private static final Color COLOR_ZONE_COMMERCIAL  = Color.rgb(207, 250, 254);
+    private static final Color COLOR_ZONE_WORK        = Color.rgb(224, 231, 255);
+    private static final Color COLOR_ZONE_EDU         = Color.rgb(254, 243, 199);
+    private static final Color COLOR_ZONE_HEALTHCARE  = Color.rgb(220, 252, 231);
     
-    private static final Color COLOR_GRID_LINE = Color.rgb(220, 220, 220);
+    private static final Color COLOR_GRID_LINE = Color.rgb(203, 213, 225);
 
     // ── State ─────────────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ public class GridView extends Canvas {
         double h = getHeight();
 
         // Background
-        gc.setFill(Color.WHITE);
+        gc.setFill(Color.rgb(226, 232, 240));
         gc.fillRect(0, 0, w, h);
 
         // Cells
@@ -151,7 +151,7 @@ public class GridView extends Canvas {
         int row = pixelToRow(pixelY);
         if (col < 0 || row < 0 || col >= grid.getWidth() || row >= grid.getHeight()) return;
         GraphicsContext gc = getGraphicsContext2D();
-        gc.setStroke(Color.WHITE);
+        gc.setStroke(Color.rgb(15, 23, 42));
         gc.setLineWidth(2);
         gc.strokeRect(col * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2);
     }
@@ -159,7 +159,7 @@ public class GridView extends Canvas {
     private void drawSelectedCell(GraphicsContext gc) {
         if (selectedRow < 0 || selectedCol < 0) return;
         if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) return;
-        gc.setStroke(Color.rgb(255, 238, 120));
+        gc.setStroke(Color.rgb(250, 204, 21));
         gc.setLineWidth(Math.max(2, cellSize * 0.18));
         gc.strokeRect(selectedCol * cellSize + 1, selectedRow * cellSize + 1,
                 cellSize - 2, cellSize - 2);
