@@ -220,7 +220,7 @@ public class MainController {
 
         // ── Save / Load ───────────────────────────────────────────────────────
         // ── Mask toggle ───────────────────────────────────────────────────────
-        ToggleButton maskBtn = new ToggleButton("😷 Mask");
+        ToggleButton maskBtn = new ToggleButton("Mask");
         maskBtn.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
         maskBtn.selectedProperty().addListener((obs, o, sel) -> {
             maskMode = sel;
@@ -231,8 +231,8 @@ public class MainController {
                           : "Mask mode OFF");
         });
 
-        Button saveBtn = styledButton("💾 Save", "#8e44ad");
-        Button loadBtn = styledButton("📂 Load", "#2980b9");
+        Button saveBtn = styledButton("Save", "#8e44ad");
+        Button loadBtn = styledButton("Load", "#2980b9");
         saveBtn.setOnAction(e -> saveSimulation());
         loadBtn.setOnAction(e -> loadSimulation());
 
@@ -389,21 +389,31 @@ public class MainController {
      * Handles a mouse-pressed event on the grid canvas.
      *
      * @param e the mouse event
-     */
-    private void onMousePressed(MouseEvent e) {
+     */private void onMousePressed(MouseEvent e) {
         int row = gridView.pixelToRow(e.getY());
         int col = gridView.pixelToCol(e.getX());
         if (row < 0 || col < 0) return;
 
         switch (editMode) {
             case BRUSH, INDIVIDUAL -> {
-                if (maskMode) {
-                    // Toggle the mask flag on the cell without changing its state
-                    var cell = grid.getCell(row, col);
-                    if (cell != null && cell.isAlive())
-                        cell.setMasked(!cell.isMasked());
-                } else {
+                // 1. Si on n'est PAS en mode masque, ou si on veut peindre un état ET mettre un masque,
+                // on applique d'abord l'état sélectionné (ex: Susceptible, Infected...)
+                if (!maskMode) {
                     grid.setCell(row, col, paintState);
+                } else {
+                    // Si le masque est activé, on peut aussi vouloir appliquer l'état sélectionné
+                    // (Sauf si l'état sélectionné est "Empty", auquel cas mettre un masque n'a pas de sens)
+                    if (paintState != CellState.EMPTY) {
+                        grid.setCell(row, col, paintState);
+                    }
+                }
+
+                // 2. Ensuite, si le mode masque est activé, on applique ou toggle le masque
+                if (maskMode) {
+                    var cell = grid.getCell(row, col);
+                    if (cell != null && cell.isAlive()) {
+                        cell.setMasked(!cell.isMasked()); // Toggle le masque au clic
+                    }
                 }
                 gridView.redraw();
             }
@@ -418,19 +428,28 @@ public class MainController {
      * Handles a mouse-dragged event on the grid canvas.
      *
      * @param e the mouse event
-     */
-    private void onMouseDragged(MouseEvent e) {
+     */private void onMouseDragged(MouseEvent e) {
         int row = gridView.pixelToRow(e.getY());
         int col = gridView.pixelToCol(e.getX());
         if (row < 0 || col < 0) return;
 
         switch (editMode) {
             case BRUSH -> {
+                // 1. Applique d'abord l'état si nécessaire
+                if (!maskMode) {
+                    grid.setCell(row, col, paintState);
+                } else {
+                    if (paintState != CellState.EMPTY) {
+                        grid.setCell(row, col, paintState);
+                    }
+                }
+
+                // 2. Force le masque à 'true' pendant le glisser de souris (drag)
                 if (maskMode) {
                     var cell = grid.getCell(row, col);
-                    if (cell != null && cell.isAlive()) cell.setMasked(true);
-                } else {
-                    grid.setCell(row, col, paintState);
+                    if (cell != null && cell.isAlive()) {
+                        cell.setMasked(true); 
+                    }
                 }
                 gridView.redraw();
             }
@@ -438,8 +457,7 @@ public class MainController {
             case INDIVIDUAL -> { /* handled on press only */ }
         }
     }
-
-    /**
+/**
      * Handles a mouse-released event on the grid canvas (finalises zone fill).
      *
      * @param e the mouse event
@@ -449,12 +467,46 @@ public class MainController {
         int row = gridView.pixelToRow(e.getY());
         int col = gridView.pixelToCol(e.getX());
         if (row < 0 || col < 0) return;
+        
         int r1 = gridView.getDragStartRow(), c1 = gridView.getDragStartCol();
         if (r1 < 0) return;
-        grid.fillArea(r1, c1, row, col, paintState);
+        
+        // 1. On remplit d'abord la zone avec l'état sélectionné (ex: Susceptible, Infected...)
+        // Si on veut juste mettre un masque sur des cellules existantes sans changer leur état,
+        // on évite de vider la grille en vérifiant si paintState n'est pas "Empty" par défaut.
+        if (!maskMode || paintState != CellState.EMPTY) {
+            grid.fillArea(r1, c1, row, col, paintState);
+        }
+        
+        // 2. Si le mode masque est activé, on applique le masque sur toute la zone sélectionnée
+        if (maskMode) {
+            // Détermination des bornes min/max pour gérer le glisser de souris dans tous les sens
+            int startRow = Math.min(r1, row);
+            int endRow   = Math.max(r1, row);
+            int startCol = Math.min(c1, col);
+            int endCol   = Math.max(c1, col);
+            
+            for (int r = startRow; r <= endRow; r++) {
+                for (int c = startCol; c <= endCol; c++) {
+                    var cell = grid.getCell(r, c);
+                    if (cell != null && cell.isAlive()) {
+                        cell.setMasked(true); // Applique le masque dans la zone
+                    }
+                }
+            }
+        }
+        
         gridView.setDragStartRow(-1);
         gridView.redraw();
-        setStatus("Zone filled with " + paintState);
+        
+        // Mise à jour du message de statut pour être plus précis
+        if (maskMode && paintState != CellState.EMPTY) {
+            setStatus("Zone filled with " + paintState + " and masked.");
+        } else if (maskMode) {
+            setStatus("Masks applied to the zone.");
+        } else {
+            setStatus("Zone filled with " + paintState);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -178,7 +178,7 @@ public class ChartExporter {
             int idx = (n - 1) * t / tickCount;
             int x   = PAD_L + idx * PLOT_W / (n - 1 == 0 ? 1 : n - 1);
             int step = history.get(idx).step();
-            String label = "S" + step;
+            String label = "" + step;
             int lw = g.getFontMetrics().stringWidth(label);
             g.setColor(C_AXIS);
             g.drawLine(x, PAD_T + PLOT_H, x, PAD_T + PLOT_H + 4);
