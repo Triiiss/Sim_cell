@@ -12,6 +12,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
@@ -136,9 +137,10 @@ public class MainController {
 
         // ── Top toolbar ───────────────────────────────────────────────────────
         HBox toolbar = buildToolbar();
+        VBox toolRail = buildToolRail();
 // ── Centre: scrollable grid canvas ───────────────────────────────────
         ScrollPane scrollPane = new ScrollPane(gridView);
-        scrollPane.setStyle("-fx-background-color: #a7a7a8; -fx-background: #d4d2d2;");
+        scrollPane.getStyleClass().add("grid-scroll");
         scrollPane.setFitToWidth(true);   
         scrollPane.setFitToHeight(true);  
         
@@ -152,12 +154,13 @@ public class MainController {
         gridView.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
             scrollPane.setPannable(false);
         });
+        BorderPane gridSurface = buildGridSurface(scrollPane);
 
         // ── Right sidebar ────────────────────────────────────────────────────
         VBox sidebarContent = buildSidebar(); 
         
         ScrollPane sidebarScrollPane = new ScrollPane(sidebarContent);
-        sidebarScrollPane.setStyle("-fx-background-color: #16213e; -fx-background: #16213e;");
+        sidebarScrollPane.getStyleClass().add("right-scroll");
         sidebarScrollPane.setFitToWidth(true);
         sidebarScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sidebarScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -167,16 +170,17 @@ public class MainController {
         statusLabel.setFont(Font.font("Monospaced", 11));
         statusLabel.setTextFill(Color.LIGHTGRAY);
         HBox statusBar = new HBox(statusLabel);
-        statusBar.setStyle("-fx-background-color: #0d0d1e;");
+        statusBar.getStyleClass().add("status-bar");
         statusBar.setPadding(new Insets(4, 8, 4, 8));
 
         // ── Root layout ───────────────────────────────────────────────────────
         BorderPane root = new BorderPane();
         root.setTop(toolbar);
-        root.setCenter(scrollPane);
-        root.setRight(sidebarScrollPane); // <── ON MET LE SCROLLPANE ICI AU LIEU DU VBOX
+        root.setLeft(toolRail);
+        root.setCenter(gridSurface);
+        root.setRight(sidebarScrollPane);
         root.setBottom(statusBar);
-        root.setStyle("-fx-background-color: #12122a;");
+        root.getStyleClass().add("app-root");
 
         // ── Mouse events on grid canvas ───────────────────────────────────────
         wireMouseEvents();
@@ -184,9 +188,13 @@ public class MainController {
         // ── Animation timer ───────────────────────────────────────────────────
         buildAnimationTimer();
 
-        Scene scene = new Scene(root, 1100, 720);
+        Scene scene = new Scene(root, 1280, 780);
         scene.setFill(Color.rgb(18, 18, 42));
-        stage.setTitle("HealthRadar – Disease Propagation Simulator");
+        var stylesheet = getClass().getResource("/healthradar/app.css");
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet.toExternalForm());
+        }
+        stage.setTitle("HealthRadar - Disease Propagation Simulator");
         stage.setScene(scene);
         stage.show();
 
@@ -203,10 +211,17 @@ public class MainController {
      * @return the constructed HBox toolbar
      */
     private HBox buildToolbar() {
-        HBox bar = new HBox(8);
+        HBox bar = new HBox(10);
         bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(6, 10, 6, 10));
-        bar.setStyle("-fx-background-color: #16213e;");
+        bar.setPadding(new Insets(10, 14, 10, 14));
+        bar.getStyleClass().add("top-bar");
+
+        Label appTitle = new Label("HealthRadar");
+        appTitle.getStyleClass().add("app-title");
+        Label appSubtitle = new Label("Disease spread simulation");
+        appSubtitle.getStyleClass().add("app-subtitle");
+        VBox brand = new VBox(1, appTitle, appSubtitle);
+        brand.setMinWidth(190);
 
         // ── Play / Pause ──────────────────────────────────────────────────────
         Button playBtn  = styledButton("▶ Play",  "#2ecc71");
@@ -288,19 +303,17 @@ public class MainController {
         Button printBtn = styledButton("📊 Print chart", "#16a085");
         printBtn.setOnAction(e -> exportChart());
 
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
         bar.getChildren().addAll(
-            playBtn, pauseBtn, stepBtn, resetBtn,
+                brand,
+                playBtn, pauseBtn, stepBtn, resetBtn,
                 new Separator(Orientation.VERTICAL),
                 speedLbl, speedSlider, stepDelayValueLabel,
                 new Separator(Orientation.VERTICAL),
                 diseaseLbl, diseaseCombo,
-                new Separator(Orientation.VERTICAL),
-                modeLbl, brushBtn, zoneBtn, indivBtn, zoneTypeBtn,
-                new Separator(Orientation.VERTICAL),
-                paintLbl, paintStateCombo,
-                new Separator(Orientation.VERTICAL),
-                zoneTypeLbl, zoneTypeCombo,
-                maskBtn,
+                spacer,
                 new Separator(Orientation.VERTICAL),
                 saveBtn, loadBtn,
                 new Separator(Orientation.VERTICAL),
@@ -309,6 +322,127 @@ public class MainController {
                 printBtn
         );
         return bar;
+    }
+
+    private VBox buildToolRail() {
+        VBox rail = new VBox(14);
+        rail.setPrefWidth(230);
+        rail.setMinWidth(220);
+        rail.setPadding(new Insets(14));
+        rail.getStyleClass().add("tool-rail");
+
+        Label title = new Label("Draw tools");
+        title.getStyleClass().add("panel-title");
+        Label hint = new Label("Choose what the mouse does on the grid.");
+        hint.getStyleClass().add("muted-label");
+        hint.setWrapText(true);
+
+        ToggleGroup modeGroup = new ToggleGroup();
+        ToggleButton brushBtn = modeToggle("Brush cells", EditMode.BRUSH, modeGroup);
+        ToggleButton zoneBtn = modeToggle("Fill area", EditMode.ZONE, modeGroup);
+        ToggleButton indivBtn = modeToggle("Single cell", EditMode.INDIVIDUAL, modeGroup);
+        ToggleButton zoneTypeBtn = modeToggle("Paint zones", EditMode.ZONETYPE, modeGroup);
+        brushBtn.setSelected(true);
+        makeFullWidth(brushBtn, zoneBtn, indivBtn, zoneTypeBtn);
+
+        paintStateCombo = new ComboBox<>();
+        paintStateCombo.getItems().addAll("Susceptible", "Vaccinated", "Exposed", "Infected", "Recovered", "Dead", "Empty");
+        paintStateCombo.setValue("Susceptible");
+        paintStateCombo.setMaxWidth(Double.MAX_VALUE);
+        paintStateCombo.setOnAction(e -> onPaintStateSelected());
+
+        zoneTypeCombo = new ComboBox<>();
+        zoneTypeCombo.getItems().addAll(ZoneType.values());
+        zoneTypeCombo.setValue(ZoneType.RESIDENTIAL);
+        zoneTypeCombo.setMaxWidth(Double.MAX_VALUE);
+
+        ToggleButton maskBtn = new ToggleButton("Mask paint mode");
+        maskBtn.setMaxWidth(Double.MAX_VALUE);
+        maskBtn.getStyleClass().add("tool-toggle");
+        maskBtn.selectedProperty().addListener((obs, oldValue, selected) -> {
+            maskMode = selected;
+            setStatus(selected
+                    ? "Mask mode ON - paint to toggle masks on cells"
+                    : "Mask mode OFF");
+        });
+
+        rail.getChildren().addAll(
+                title,
+                hint,
+                toolGroup("Mode", brushBtn, zoneBtn, indivBtn, zoneTypeBtn),
+                toolGroup("Cell state", paintStateCombo),
+                toolGroup("Urban zone", zoneTypeCombo),
+                toolGroup("Protection", maskBtn)
+        );
+        return rail;
+    }
+
+    private BorderPane buildGridSurface(ScrollPane scrollPane) {
+        BorderPane surface = new BorderPane(scrollPane);
+        surface.getStyleClass().add("grid-surface");
+
+        Label title = new Label("Simulation Map");
+        title.getStyleClass().add("panel-title");
+        Label subtitle = new Label("Click cells to inspect them. Use the left tools to draw states and zones.");
+        subtitle.getStyleClass().add("muted-label");
+
+        HBox legend = new HBox(10,
+                legendItem("Susceptible", GridView.stateColor(CellState.SUSCEPTIBLE)),
+                legendItem("Vaccinated", GridView.stateColor(CellState.VACCINATED)),
+                legendItem("Exposed", GridView.stateColor(CellState.EXPOSED)),
+                legendItem("Infected", GridView.stateColor(CellState.INFECTED)),
+                legendItem("Recovered", GridView.stateColor(CellState.RECOVERED)),
+                legendItem("Dead", GridView.stateColor(CellState.DEAD))
+        );
+        legend.setAlignment(Pos.CENTER_RIGHT);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(16, new VBox(1, title, subtitle), spacer, legend);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("grid-header");
+
+        surface.setTop(header);
+        BorderPane.setMargin(scrollPane, new Insets(0, 14, 14, 14));
+        return surface;
+    }
+
+    private VBox toolGroup(String title, Node... controls) {
+        VBox group = new VBox(7);
+        group.getStyleClass().add("tool-group");
+
+        Label label = new Label(title);
+        label.getStyleClass().add("tool-group-title");
+        group.getChildren().add(label);
+        group.getChildren().addAll(controls);
+        return group;
+    }
+
+    private HBox legendItem(String label, Color color) {
+        Region swatch = new Region();
+        swatch.setPrefSize(10, 10);
+        swatch.setMinSize(10, 10);
+        swatch.setMaxSize(10, 10);
+        swatch.setStyle("-fx-background-color:" + toCss(color) + "; -fx-background-radius:2;");
+
+        Label text = new Label(label);
+        text.getStyleClass().add("legend-label");
+        HBox item = new HBox(5, swatch, text);
+        item.setAlignment(Pos.CENTER_LEFT);
+        return item;
+    }
+
+    private void makeFullWidth(Control... controls) {
+        for (Control control : controls) {
+            control.setMaxWidth(Double.MAX_VALUE);
+        }
+    }
+
+    private String toCss(Color color) {
+        return String.format(Locale.ROOT, "rgb(%d,%d,%d)",
+                Math.round(color.getRed() * 255),
+                Math.round(color.getGreen() * 255),
+                Math.round(color.getBlue() * 255));
     }
 
     /**
