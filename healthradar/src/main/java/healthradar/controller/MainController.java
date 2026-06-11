@@ -647,6 +647,10 @@ public class MainController {
         currentDisease.setIncubationPeriod((int) incubationSlider.getValue());
         currentDisease.setInfectionDuration((int) infectionDurSlider.getValue());
         currentDisease.setImmunityDuration((int) immunitySlider.getValue());
+        currentDisease.setVaccineEfficacy(vaccineEfficacySlider.getValue());
+        currentDisease.setVaccineImmunityDuration((int) vaccineImmunitySlider.getValue());
+        currentDisease.setMaskInwardEfficacy(maskInwardSlider.getValue());
+        currentDisease.setMaskOutwardEfficacy(maskOutwardSlider.getValue());
         currentDisease.setAirborne(airborneCheck.isSelected());
         grid.setDisease(currentDisease);
     }
