@@ -457,6 +457,8 @@ public class MainController {
         TitledPane pane = new TitledPane(title, content);
         pane.setExpanded(expanded);
         pane.setAnimated(true);
+        pane.setMaxWidth(Double.MAX_VALUE);
+        pane.setTextFill(Color.WHITE);
         pane.setStyle(
                 "-fx-text-fill:white;" +
                 "-fx-font-weight:bold;" +
@@ -826,6 +828,10 @@ public class MainController {
         currentDisease.setIncubationPeriod((int) incubationSlider.getValue());
         currentDisease.setInfectionDuration((int) infectionDurSlider.getValue());
         currentDisease.setImmunityDuration((int) immunitySlider.getValue());
+        currentDisease.setVaccineEfficacy(vaccineEfficacySlider.getValue());
+        currentDisease.setVaccineImmunityDuration((int) vaccineImmunitySlider.getValue());
+        currentDisease.setMaskInwardEfficacy(maskInwardSlider.getValue());
+        currentDisease.setMaskOutwardEfficacy(maskOutwardSlider.getValue());
         currentDisease.setAirborne(airborneCheck.isSelected());
         grid.setDisease(currentDisease);
     }
@@ -920,8 +926,11 @@ public class MainController {
      */
     private Button styledButton(String text, String color) {
         Button b = new Button(text);
+        b.setMinHeight(28);
+        b.setPadding(new Insets(5, 10, 5, 10));
         b.setStyle("-fx-background-color:" + color + "; -fx-text-fill:white;"
-                + "-fx-font-size:11px; -fx-background-radius:4;");
+                + "-fx-font-size:11px; -fx-font-weight:bold;"
+                + "-fx-background-radius:5; -fx-cursor:hand;");
         return b;
     }
 
@@ -956,7 +965,7 @@ public class MainController {
      */
     private Label sectionLabel(String text) {
         Label l = new Label(text);
-        l.setTextFill(Color.LIGHTBLUE);
+        l.setTextFill(Color.rgb(125, 211, 252));
         l.setFont(Font.font("System Bold", 13));
         return l;
     }
@@ -972,13 +981,19 @@ public class MainController {
     private ToggleButton modeToggle(String text, EditMode mode, ToggleGroup group) {
         ToggleButton tb = new ToggleButton(text);
         tb.setToggleGroup(group);
-        tb.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
+        tb.setMinHeight(28);
+        tb.setPadding(new Insets(5, 9, 5, 9));
+        tb.setStyle("-fx-background-color:#253449; -fx-text-fill:white;"
+                + "-fx-font-size:11px; -fx-background-radius:5; -fx-cursor:hand;");
         tb.selectedProperty().addListener((obs, o, selected) -> {
             if (selected) {
                 editMode = mode;
-                tb.setStyle("-fx-background-color:#3498db; -fx-text-fill:white; -fx-font-size:11px;");
+                tb.setStyle("-fx-background-color:#3498db; -fx-text-fill:white;"
+                        + "-fx-font-size:11px; -fx-font-weight:bold;"
+                        + "-fx-background-radius:5; -fx-cursor:hand;");
             } else {
-                tb.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
+                tb.setStyle("-fx-background-color:#253449; -fx-text-fill:white;"
+                        + "-fx-font-size:11px; -fx-background-radius:5; -fx-cursor:hand;");
             }
         });
         return tb;
@@ -996,19 +1011,47 @@ public class MainController {
      */
     private Slider labelledSlider(String label, double min, double max, double init, VBox box) {
         Label lbl = new Label(label);
-        lbl.setTextFill(Color.LIGHTGRAY);
+        lbl.setTextFill(Color.rgb(190, 205, 220));
         lbl.setFont(Font.font(11));
+        lbl.setWrapText(true);
+
+        Label value = new Label(formatSliderValue(label, init, max));
+        value.setTextFill(Color.WHITE);
+        value.setFont(Font.font("Monospaced", 11));
+        value.setMinWidth(52);
+        value.setAlignment(Pos.CENTER_RIGHT);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, lbl, spacer, value);
+        header.setAlignment(Pos.CENTER_LEFT);
+
         Slider s = new Slider(min, max, init);
         s.setShowTickMarks(false);
-        s.setPrefWidth(240);
-        box.getChildren().addAll(lbl, s);
+        s.setMaxWidth(Double.MAX_VALUE);
+        s.valueProperty().addListener((obs, oldValue, newValue) ->
+                value.setText(formatSliderValue(label, newValue.doubleValue(), max)));
+
+        VBox control = new VBox(4, header, s);
+        control.setFillWidth(true);
+        box.getChildren().add(control);
         return s;
+    }
+
+    private String formatSliderValue(String label, double value, double max) {
+        if (label.contains("%")) {
+            return String.format(Locale.ROOT, "%.0f%%", value);
+        }
+        if (max <= 1.0) {
+            return String.format(Locale.ROOT, "%.2f", value);
+        }
+        return String.format(Locale.ROOT, "%.0f", value);
     }
 
     /** @return a thin horizontal separator styled for dark background */
     private Separator separator() {
         Separator sep = new Separator();
-        sep.setStyle("-fx-background-color:#2c3e50;");
+        sep.setStyle("-fx-background-color:#1f2d3d;");
         return sep;
     }
 
