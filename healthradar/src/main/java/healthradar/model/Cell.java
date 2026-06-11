@@ -43,6 +43,7 @@ public class Cell implements Serializable {
      * empty cell.
      */
     private double moveProbability;
+    private double baseMoveProbability;
 
     /**
      * True if this person is wearing a mask.
@@ -69,7 +70,8 @@ public class Cell implements Serializable {
         // Personal resistance drawn from a normal distribution, clamped to [0,0.6]
         this.resistance = Math.max(0, Math.min(0.6, rng.nextGaussian() * 0.1 + 0.2));
         // Movement probability between 0.1 and 0.4
-        this.moveProbability = 0.1 + rng.nextDouble() * 0.3;
+        this.baseMoveProbability = 0.1 + rng.nextDouble() * 0.3;
+        this.moveProbability = this.baseMoveProbability;
     }
 
     /**
@@ -80,6 +82,7 @@ public class Cell implements Serializable {
         this.zoneType = ZoneType.EMPTY_SPACE;
         this.stateAge = 0;
         this.resistance = 0;
+        this.baseMoveProbability = 0;
         this.moveProbability = 0;
     }
 
@@ -113,7 +116,7 @@ public class Cell implements Serializable {
 
     /** @param p new move probability, clamped to [0.1, 0.4] */
     public void setMoveProbability(double p) {
-        this.moveProbability = Math.max(0.1, Math.min(0.4, p));
+        this.moveProbability = Math.max(0.1, Math.min(1.0, p));
     }
 
     public void setStateAge(int a) {
@@ -124,6 +127,15 @@ public class Cell implements Serializable {
     public void setZoneType(ZoneType zoneType) { this.zoneType = zoneType; }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Ajuste la probabilité de mouvement finale en multipliant la valeur de base.
+     * @param factor 1.0 = normal (0.1 à 0.4), 0.0 = confinement total (0.0 partout)
+     */
+    public void adjustMovementWithFactor(double factor) {
+        // Permet de descendre à 0.0 sans restriction et de brider au maximum à 1.0
+        this.moveProbability = Math.max(0.0, Math.min(1.0, this.baseMoveProbability * factor));
+    }
 
     /** @return true if the cell is occupied by a person (not EMPTY or DEAD) */
     public boolean isAlive() {
@@ -162,6 +174,7 @@ public class Cell implements Serializable {
         c.zoneType = this.zoneType;
         c.stateAge = this.stateAge;
         c.resistance = this.resistance;
+        c.baseMoveProbability = this.baseMoveProbability;
         c.moveProbability = this.moveProbability;
         c.masked = this.masked;
         return c;

@@ -158,15 +158,11 @@ public class Grid implements Serializable {
             
             Cell currentAgent = cells[r][c];
 
-            // Si la case est vide ou si la personne est morte, elle reste sur place
             if (currentAgent.getState() == CellState.EMPTY || currentAgent.getState() == CellState.DEAD) {
                 continue;
             }
 
-            // L'agent décide de bouger selon sa propre probabilité
             if (rng.nextDouble() < currentAgent.getMoveProbability()) {
-                
-                // 3. Calcul manuel des voisins à un rayon de 1 (Copie conforme de la logique de ton getNeighbors d'origine)
                 List<int[]> neighbors = new ArrayList<>();
                 for (int rd = -1; rd <= 1; rd++) {
                     for (int cd = -1; cd <= 1; cd++) {
@@ -176,12 +172,10 @@ public class Grid implements Serializable {
                         int nc = c + cd;
 
                         if (toroidal) {
-                            // Utilise la méthode wrap() qui existe déjà dans ton Grid.java
                             nr = wrap(nr, height);
                             nc = wrap(nc, width);
                             neighbors.add(new int[]{nr, nc});
                         } else {
-                            // Vérification manuelle des bordures (ce que faisait isValid)
                             if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
                                 neighbors.add(new int[]{nr, nc});
                             }
