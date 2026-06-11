@@ -456,7 +456,7 @@ public class MainController {
         box.setPadding(new Insets(12, 18, 12, 12));
         box.setPrefWidth(350);
         box.setMaxWidth(Double.MAX_VALUE);
-        box.setStyle("-fx-background-color:#101827;");
+        box.getStyleClass().add("side-panel");
 
         Label title = new Label("HealthRadar");
         title.setTextFill(Color.WHITE);
@@ -583,7 +583,7 @@ public class MainController {
     private VBox sidebarSectionBox() {
         VBox section = new VBox(8);
         section.setPadding(new Insets(10));
-        section.setStyle("-fx-background-color:#0f1b2f; -fx-background-radius:6;");
+        section.getStyleClass().add("section-card");
         return section;
     }
 
@@ -593,19 +593,14 @@ public class MainController {
         pane.setAnimated(true);
         pane.setMaxWidth(Double.MAX_VALUE);
         pane.setTextFill(Color.WHITE);
-        pane.setStyle(
-                "-fx-text-fill:white;" +
-                "-fx-font-weight:bold;" +
-                "-fx-background-color:#0f1b2f;" +
-                "-fx-background-radius:6;"
-        );
+        pane.getStyleClass().add("section-pane");
         return pane;
     }
 
     private VBox buildCellInspector() {
         VBox panel = new VBox(7);
         panel.setPadding(new Insets(10));
-        panel.setStyle("-fx-background-color:#0f1b2f; -fx-background-radius:6;");
+        panel.getStyleClass().add("inspector-card");
 
         Label title = sectionLabel("Cell Inspector");
         Label hint = new Label("Click a grid cell to inspect its current data.");
@@ -1062,6 +1057,7 @@ public class MainController {
         Button b = new Button(text);
         b.setMinHeight(28);
         b.setPadding(new Insets(5, 10, 5, 10));
+        b.getStyleClass().add("action-button");
         b.setStyle("-fx-background-color:" + color + "; -fx-text-fill:white;"
                 + "-fx-font-size:11px; -fx-font-weight:bold;"
                 + "-fx-background-radius:5; -fx-cursor:hand;");
@@ -1117,17 +1113,10 @@ public class MainController {
         tb.setToggleGroup(group);
         tb.setMinHeight(28);
         tb.setPadding(new Insets(5, 9, 5, 9));
-        tb.setStyle("-fx-background-color:#253449; -fx-text-fill:white;"
-                + "-fx-font-size:11px; -fx-background-radius:5; -fx-cursor:hand;");
+        tb.getStyleClass().add("tool-toggle");
         tb.selectedProperty().addListener((obs, o, selected) -> {
             if (selected) {
                 editMode = mode;
-                tb.setStyle("-fx-background-color:#3498db; -fx-text-fill:white;"
-                        + "-fx-font-size:11px; -fx-font-weight:bold;"
-                        + "-fx-background-radius:5; -fx-cursor:hand;");
-            } else {
-                tb.setStyle("-fx-background-color:#253449; -fx-text-fill:white;"
-                        + "-fx-font-size:11px; -fx-background-radius:5; -fx-cursor:hand;");
             }
         });
         return tb;
@@ -1185,7 +1174,7 @@ public class MainController {
     /** @return a thin horizontal separator styled for dark background */
     private Separator separator() {
         Separator sep = new Separator();
-        sep.setStyle("-fx-background-color:#1f2d3d;");
+        sep.getStyleClass().add("panel-separator");
         return sep;
     }
 
