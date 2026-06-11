@@ -54,8 +54,11 @@ public class GridView extends Canvas {
     /** The grid to render. */
     private Grid grid;
 
-    /** Pixel size of each cell square. */
-    private double cellSize;
+    /** Pixel width of each cell. */
+    private double cellWidth;
+
+    /** Pixel height of each cell. */
+    private double cellHeight;
 
     /** Whether to draw grid lines between cells. */
     private boolean showGridLines = true;
@@ -82,7 +85,8 @@ public class GridView extends Canvas {
     public GridView(Grid grid, double cellSize) {
         super(grid.getWidth() * cellSize, grid.getHeight() * cellSize);
         this.grid = grid;
-        this.cellSize = cellSize;
+        this.cellWidth = cellSize;
+        this.cellHeight = cellSize;
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
@@ -103,37 +107,40 @@ public class GridView extends Canvas {
         // Cells
         for (int r = 0; r < grid.getHeight(); r++) {
             for (int c = 0; c < grid.getWidth(); c++) {
-                Cell cell = grid.getCell(r, c);double x = c * cellSize;
-                double y = r * cellSize;
+                Cell cell = grid.getCell(r, c);
+                double x = c * cellWidth;
+                double y = r * cellHeight;
 
                 gc.setFill(getZoneColor(cell.getZoneType()));
-                gc.fillRect(x, y, cellSize, cellSize);
+                gc.fillRect(x, y, cellWidth, cellHeight);
 
                 if (cell.getState() != CellState.EMPTY) {
                     gc.setFill(stateColor(cell.getState()));
                     
-                    double margin = cellSize * 0.15;
-                    double circleSize = cellSize - (margin * 2);
+                    double marginX = cellWidth * 0.15;
+                    double marginY = cellHeight * 0.15;
+                    double circleWidth = cellWidth - (marginX * 2);
+                    double circleHeight = cellHeight - (marginY * 2);
                     
-                    gc.fillOval(x + margin, y + margin, circleSize, circleSize);
+                    gc.fillOval(x + marginX, y + marginY, circleWidth, circleHeight);
 
                     if (cell.isMasked() && cell.isAlive()) {
                         gc.setStroke(Color.BLACK);
-                        gc.setLineWidth(cellSize * 0.1);
-                        gc.strokeOval(x + margin, y + margin, circleSize, circleSize);
+                        gc.setLineWidth(Math.max(0.8, Math.min(cellWidth, cellHeight) * 0.1));
+                        gc.strokeOval(x + marginX, y + marginY, circleWidth, circleHeight);
                     }
                 }
             }
         }
 
         // Grid lines (only for large enough cells)
-        if (showGridLines && cellSize >= 5) {
+        if (showGridLines && Math.min(cellWidth, cellHeight) >= 5) {
             gc.setStroke(COLOR_GRID_LINE);
             gc.setLineWidth(0.5);
             for (int c = 0; c <= grid.getWidth(); c++)
-                gc.strokeLine(c * cellSize, 0, c * cellSize, h);
+                gc.strokeLine(c * cellWidth, 0, c * cellWidth, h);
             for (int r = 0; r <= grid.getHeight(); r++)
-                gc.strokeLine(0, r * cellSize, w, r * cellSize);
+                gc.strokeLine(0, r * cellHeight, w, r * cellHeight);
         }
 
         drawSelectedCell(gc);
@@ -153,16 +160,17 @@ public class GridView extends Canvas {
         GraphicsContext gc = getGraphicsContext2D();
         gc.setStroke(Color.rgb(15, 23, 42));
         gc.setLineWidth(2);
-        gc.strokeRect(col * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2);
+        gc.strokeRect(col * cellWidth + 1, row * cellHeight + 1,
+                Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
     }
 
     private void drawSelectedCell(GraphicsContext gc) {
         if (selectedRow < 0 || selectedCol < 0) return;
         if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) return;
         gc.setStroke(Color.rgb(250, 204, 21));
-        gc.setLineWidth(Math.max(2, cellSize * 0.18));
-        gc.strokeRect(selectedCol * cellSize + 1, selectedRow * cellSize + 1,
-                cellSize - 2, cellSize - 2);
+        gc.setLineWidth(Math.max(2, Math.min(cellWidth, cellHeight) * 0.18));
+        gc.strokeRect(selectedCol * cellWidth + 1, selectedRow * cellHeight + 1,
+                Math.max(0, cellWidth - 2), Math.max(0, cellHeight - 2));
     }
 
     /**
@@ -181,8 +189,8 @@ public class GridView extends Canvas {
         GraphicsContext gc = getGraphicsContext2D();
         gc.setStroke(Color.YELLOW);
         gc.setLineWidth(2);
-        gc.strokeRect(c1 * cellSize, r1 * cellSize,
-                (c2 - c1 + 1) * cellSize, (r2 - r1 + 1) * cellSize);
+        gc.strokeRect(c1 * cellWidth, r1 * cellHeight,
+                (c2 - c1 + 1) * cellWidth, (r2 - r1 + 1) * cellHeight);
     }
 
     private Color getZoneColor(ZoneType type) {
@@ -219,7 +227,7 @@ public class GridView extends Canvas {
      * @return column index, or -1 if out of bounds
      */
     public int pixelToCol(double px) {
-        int c = (int)(px / cellSize);
+        int c = (int)(px / cellWidth);
         return (c >= 0 && c < grid.getWidth()) ? c : -1;
     }
 
@@ -230,7 +238,7 @@ public class GridView extends Canvas {
      * @return row index, or -1 if out of bounds
      */
     public int pixelToRow(double py) {
-        int r = (int)(py / cellSize);
+        int r = (int)(py / cellHeight);
         return (r >= 0 && r < grid.getHeight()) ? r : -1;
     }
 
@@ -239,12 +247,18 @@ public class GridView extends Canvas {
     /** @param grid the new grid to display (used after load or resize) */
     public void setGrid(Grid grid) {
         this.grid = grid;
-        setWidth(grid.getWidth() * cellSize);
-        setHeight(grid.getHeight() * cellSize);
+        setWidth(grid.getWidth() * cellWidth);
+        setHeight(grid.getHeight() * cellHeight);
     }
 
     /** @return current pixel size of one cell */
-    public double getCellSize() { return cellSize; }
+    public double getCellSize() { return Math.min(cellWidth, cellHeight); }
+
+    /** @return current pixel width of one cell */
+    public double getCellWidth() { return cellWidth; }
+
+    /** @return current pixel height of one cell */
+    public double getCellHeight() { return cellHeight; }
 
     public void setSelectedCell(int row, int col) {
         this.selectedRow = row;
@@ -257,9 +271,20 @@ public class GridView extends Canvas {
      * @param cellSize new pixel size per cell
      */
     public void setCellSize(double cellSize) {
-        this.cellSize = cellSize;
-        setWidth(grid.getWidth() * cellSize);
-        setHeight(grid.getHeight() * cellSize);
+        setCellSize(cellSize, cellSize);
+    }
+
+    /**
+     * Changes the cell dimensions and resizes the canvas accordingly.
+     *
+     * @param cellWidth new pixel width per cell
+     * @param cellHeight new pixel height per cell
+     */
+    public void setCellSize(double cellWidth, double cellHeight) {
+        this.cellWidth = Math.max(0.1, cellWidth);
+        this.cellHeight = Math.max(0.1, cellHeight);
+        setWidth(grid.getWidth() * this.cellWidth);
+        setHeight(grid.getHeight() * this.cellHeight);
         redraw();
     }
 

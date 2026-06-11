@@ -8,6 +8,7 @@ import healthradar.view.EditMode;
 import healthradar.view.GridView;
 import healthradar.view.StatsPanel;
 import javafx.animation.AnimationTimer;
+import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -57,6 +58,11 @@ public class MainController {
     private StatsPanel statsPanel;
     private Stage      primaryStage;
     private ScrollPane gridScrollPane;
+    private BorderPane rootLayout;
+    private Node       mapSurface;
+    private Node       setupPage;
+    private VBox       toolRail;
+    private VBox       sidebarContent;
 
     // ── Animation loop ────────────────────────────────────────────────────────
 
@@ -79,6 +85,8 @@ public class MainController {
     private Slider     speedSlider;
     private Label      stepDelayValueLabel;
     private MenuButton delayMenuButton;
+    private ToggleButton mapPageButton;
+    private ToggleButton setupPageButton;
     private ComboBox<String> diseaseCombo;
     private ComboBox<String> paintStateCombo;
     private ComboBox<ZoneType> zoneTypeCombo;
@@ -90,6 +98,8 @@ public class MainController {
     private Label inspectorMoveValue;
     private Label inspectorMaskValue;
     private Label inspectorRiskValue;
+    private Label setupGridSizeValue;
+    private CheckBox toroidalSetupCheck;
     private int selectedRow = -1;
     private int selectedCol = -1;
 
@@ -143,7 +153,7 @@ public class MainController {
 
         // ── Top toolbar ───────────────────────────────────────────────────────
         HBox toolbar = buildToolbar();
-        VBox toolRail = buildToolRail();
+        toolRail = buildToolRail();
 // ── Centre: scrollable grid canvas ───────────────────────────────────
         StackPane gridViewport = new StackPane(gridView);
         gridViewport.getStyleClass().add("grid-viewport");
@@ -151,8 +161,8 @@ public class MainController {
         gridScrollPane.getStyleClass().add("grid-scroll");
         gridScrollPane.setFitToWidth(true);
         gridScrollPane.setFitToHeight(true);
-        gridScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        gridScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        gridScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        gridScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         
         gridScrollPane.setPannable(false);
 
@@ -165,10 +175,11 @@ public class MainController {
             gridScrollPane.setPannable(false);
         });
         setupResponsiveGrid();
-        BorderPane gridSurface = buildGridSurface(gridScrollPane);
+        mapSurface = buildGridSurface(gridScrollPane);
 
         // ── Right sidebar ────────────────────────────────────────────────────
-        VBox sidebarContent = buildSidebar(); 
+        sidebarContent = buildSidebar();
+        setupPage = buildSetupPage();
 
         // ── Status bar ────────────────────────────────────────────────────────
         statusLabel = new Label("Ready – draw cells, then press Play.");
@@ -179,13 +190,13 @@ public class MainController {
         statusBar.setPadding(new Insets(4, 8, 4, 8));
 
         // ── Root layout ───────────────────────────────────────────────────────
-        BorderPane root = new BorderPane();
-        root.setTop(toolbar);
-        root.setLeft(toolRail);
-        root.setCenter(gridSurface);
-        root.setRight(sidebarContent);
-        root.setBottom(statusBar);
-        root.getStyleClass().add("app-root");
+        rootLayout = new BorderPane();
+        rootLayout.setTop(toolbar);
+        rootLayout.setLeft(toolRail);
+        rootLayout.setCenter(mapSurface);
+        rootLayout.setRight(sidebarContent);
+        rootLayout.setBottom(statusBar);
+        rootLayout.getStyleClass().add("app-root");
 
         // ── Mouse events on grid canvas ───────────────────────────────────────
         wireMouseEvents();
@@ -193,7 +204,7 @@ public class MainController {
         // ── Animation timer ───────────────────────────────────────────────────
         buildAnimationTimer();
 
-        Scene scene = new Scene(root, 1280, 780);
+        Scene scene = new Scene(rootLayout, 1280, 780);
         scene.setFill(Color.rgb(18, 18, 42));
         var stylesheet = getClass().getResource("/healthradar/app.css");
         if (stylesheet != null) {
@@ -203,6 +214,7 @@ public class MainController {
         stage.setScene(scene);
         stage.show();
 
+        showMapPage();
         refitGridToViewport();
         gridView.redraw();
     }
@@ -228,6 +240,7 @@ public class MainController {
         appSubtitle.getStyleClass().add("app-subtitle");
         VBox brand = new VBox(1, appTitle, appSubtitle);
         brand.setMinWidth(190);
+        HBox pageNavigation = buildPageNavigation();
 
         // ── Play / Pause ──────────────────────────────────────────────────────
         Button playBtn  = styledButton("▶ Play",  "#2ecc71");
@@ -302,6 +315,8 @@ public class MainController {
 
         bar.getChildren().addAll(
                 brand,
+                pageNavigation,
+                new Separator(Orientation.VERTICAL),
                 playBtn, pauseBtn, stepBtn, resetBtn,
                 new Separator(Orientation.VERTICAL),
                 delayMenu,
@@ -316,6 +331,57 @@ public class MainController {
                 printBtn
         );
         return bar;
+    }
+
+    private HBox buildPageNavigation() {
+        ToggleGroup pageGroup = new ToggleGroup();
+        mapPageButton = new ToggleButton("Map");
+        setupPageButton = new ToggleButton("Setup");
+
+        mapPageButton.setToggleGroup(pageGroup);
+        setupPageButton.setToggleGroup(pageGroup);
+        mapPageButton.getStyleClass().add("page-toggle");
+        setupPageButton.getStyleClass().add("page-toggle");
+        mapPageButton.setSelected(true);
+
+        mapPageButton.setOnAction(e -> showMapPage());
+        setupPageButton.setOnAction(e -> showSetupPage());
+
+        HBox nav = new HBox(0, mapPageButton, setupPageButton);
+        nav.getStyleClass().add("page-nav");
+        nav.setAlignment(Pos.CENTER_LEFT);
+        return nav;
+    }
+
+    private void showMapPage() {
+        if (rootLayout == null) return;
+        rootLayout.setLeft(toolRail);
+        rootLayout.setCenter(mapSurface);
+        rootLayout.setRight(sidebarContent);
+        if (mapPageButton != null && !mapPageButton.isSelected()) {
+            mapPageButton.setSelected(true);
+        }
+        Platform.runLater(this::refitGridToViewport);
+        if (statusLabel != null) {
+            setStatus("Map view - draw, inspect, and run the simulation.");
+        }
+    }
+
+    private void showSetupPage() {
+        if (rootLayout == null) return;
+        if (running) {
+            pauseSimulation();
+        }
+        refreshSetupPage();
+        rootLayout.setLeft(null);
+        rootLayout.setCenter(setupPage);
+        rootLayout.setRight(null);
+        if (setupPageButton != null && !setupPageButton.isSelected()) {
+            setupPageButton.setSelected(true);
+        }
+        if (statusLabel != null) {
+            setStatus("Setup view - configure grid and starting population.");
+        }
     }
 
     private VBox buildToolRail() {
@@ -379,30 +445,6 @@ public class MainController {
     private BorderPane buildGridSurface(ScrollPane scrollPane) {
         BorderPane surface = new BorderPane(scrollPane);
         surface.getStyleClass().add("grid-surface");
-
-        Label title = new Label("Simulation Map");
-        title.getStyleClass().add("panel-title");
-        Label subtitle = new Label("Click cells to inspect them. Use the left tools to draw states and zones.");
-        subtitle.getStyleClass().add("muted-label");
-
-        HBox legend = new HBox(10,
-                legendItem("Susceptible", GridView.stateColor(CellState.SUSCEPTIBLE)),
-                legendItem("Vaccinated", GridView.stateColor(CellState.VACCINATED)),
-                legendItem("Exposed", GridView.stateColor(CellState.EXPOSED)),
-                legendItem("Infected", GridView.stateColor(CellState.INFECTED)),
-                legendItem("Recovered", GridView.stateColor(CellState.RECOVERED)),
-                legendItem("Dead", GridView.stateColor(CellState.DEAD))
-        );
-        legend.setAlignment(Pos.CENTER_RIGHT);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(16, new VBox(1, title, subtitle), spacer, legend);
-        header.setAlignment(Pos.CENTER_LEFT);
-        header.getStyleClass().add("grid-header");
-
-        surface.setTop(header);
-        BorderPane.setMargin(scrollPane, new Insets(0, 14, 14, 14));
         return surface;
     }
 
@@ -422,17 +464,18 @@ public class MainController {
 
     private void fitGridToViewport(Bounds viewport) {
         if (viewport == null || grid == null || grid.getWidth() <= 0 || grid.getHeight() <= 0) return;
-        double availableWidth = viewport.getWidth() - 10;
-        double availableHeight = viewport.getHeight() - 10;
+        double availableWidth = viewport.getWidth();
+        double availableHeight = viewport.getHeight();
         if (availableWidth <= 0 || availableHeight <= 0) return;
 
-        double fitCellSize = Math.min(availableWidth / grid.getWidth(), availableHeight / grid.getHeight());
-        if (Double.isNaN(fitCellSize) || Double.isInfinite(fitCellSize)) return;
+        double targetCellWidth = availableWidth / grid.getWidth();
+        double targetCellHeight = availableHeight / grid.getHeight();
+        if (Double.isNaN(targetCellWidth) || Double.isInfinite(targetCellWidth)
+                || Double.isNaN(targetCellHeight) || Double.isInfinite(targetCellHeight)) return;
 
-        double targetCellSize = Math.max(configuredCellSize, fitCellSize);
-        targetCellSize = Math.max(4.0, Math.min(MAX_AUTO_CELL_SIZE, targetCellSize));
-        if (Math.abs(gridView.getCellSize() - targetCellSize) > 0.2) {
-            gridView.setCellSize(targetCellSize);
+        if (Math.abs(gridView.getWidth() - availableWidth) > 0.5
+                || Math.abs(gridView.getHeight() - availableHeight) > 0.5) {
+            gridView.setCellSize(targetCellWidth, targetCellHeight);
         }
     }
 
@@ -509,8 +552,6 @@ public class MainController {
         monitorTab.setPadding(new Insets(0, 4, 0, 0));
         VBox diseaseTab = new VBox(10);
         diseaseTab.setPadding(new Insets(0, 4, 0, 0));
-        VBox setupTab = new VBox(10);
-        setupTab.setPadding(new Insets(0, 4, 0, 0));
 
         monitorTab.getChildren().add(buildCellInspector());
 
@@ -571,53 +612,9 @@ public class MainController {
 
         diseaseTab.getChildren().add(protectionBox);
 
-        // ── Random populate ───────────────────────────────────────────────────
-        VBox populationBox = sidebarSectionBox();
-        populationBox.getChildren().add(sectionLabel("Random Populate"));
-        Label popNote = new Label("% of total grid cells");
-        popNote.setTextFill(Color.GRAY);
-        popNote.setFont(Font.font(10));
-        populationBox.getChildren().add(popNote);
-
-        susceptibleSlider = labelledSlider("Susceptible % of grid", 0, 100, 40, populationBox);
-        infectedSlider    = labelledSlider("Infected %    of grid", 0, 100,  5, populationBox);
-
-        Button populateBtn = styledButton("Random Populate", "#16a085");
-        populateBtn.setMaxWidth(Double.MAX_VALUE);
-        populateBtn.setOnAction(e -> randomPopulate());
-
-        Button clearBtn = styledButton("Clear Grid", "#c0392b");
-        clearBtn.setMaxWidth(Double.MAX_VALUE);
-        clearBtn.setOnAction(e -> {
-            grid.clear();
-            engine = new SimulationEngine(grid);
-            statsPanel.setEngine(engine);
-            clearCellInspector();
-            gridView.redraw();
-            setStatus("Grid cleared.");
-        });
-
-        populationBox.getChildren().addAll(populateBtn, clearBtn);
-        setupTab.getChildren().add(populationBox);
-
-        // ── Toroidal toggle ───────────────────────────────────────────────────
-        VBox optionsBox = sidebarSectionBox();
-        optionsBox.getChildren().add(sectionLabel("Grid Options"));
-        CheckBox toroidalCheck = new CheckBox("Toroidal topology (wrap edges)");
-        toroidalCheck.setTextFill(Color.WHITE);
-        toroidalCheck.setFont(Font.font(12));
-        toroidalCheck.setSelected(false);
-        toroidalCheck.setOnAction(e -> {
-            grid.setToroidal(toroidalCheck.isSelected());
-            setStatus("Topology: " + (grid.isToroidal() ? "Toroidal" : "Bounded"));
-        });
-        optionsBox.getChildren().add(toroidalCheck);
-        setupTab.getChildren().add(optionsBox);
-
         sideTabs.getTabs().addAll(
                 sidebarTab("Disease", diseaseTab),
-                sidebarTab("Monitor", monitorTab),
-                sidebarTab("Setup", setupTab)
+                sidebarTab("Monitor", monitorTab)
         );
         box.getChildren().add(sideTabs);
 
@@ -633,6 +630,147 @@ public class MainController {
         Tab tab = new Tab(title, scrollPane);
         tab.setClosable(false);
         return tab;
+    }
+
+    private Node buildSetupPage() {
+        BorderPane page = new BorderPane();
+        page.getStyleClass().add("setup-page");
+
+        Label title = new Label("Setup");
+        title.getStyleClass().add("setup-title");
+        Label subtitle = new Label("Configure the grid, starting population, topology, and launch options before running scenarios.");
+        subtitle.getStyleClass().add("setup-subtitle");
+        subtitle.setWrapText(true);
+
+        Button backToMapBtn = styledButton("Back to map", "#0ea5e9");
+        backToMapBtn.setOnAction(e -> showMapPage());
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        HBox header = new HBox(16, new VBox(2, title, subtitle), headerSpacer, backToMapBtn);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("setup-header");
+        page.setTop(header);
+
+        GridPane content = new GridPane();
+        content.getStyleClass().add("setup-grid");
+        content.setHgap(14);
+        content.setVgap(14);
+        ColumnConstraints leftCol = new ColumnConstraints();
+        leftCol.setPercentWidth(50);
+        ColumnConstraints rightCol = new ColumnConstraints();
+        rightCol.setPercentWidth(50);
+        content.getColumnConstraints().addAll(leftCol, rightCol);
+
+        VBox gridBox = setupCard("Grid");
+        setupGridSizeValue = setupValue("");
+        gridBox.getChildren().addAll(
+                setupRow("Current size", setupGridSizeValue),
+                setupText("Resize the map from the full settings dialog. The map view now stretches the grid to its full available area.")
+        );
+
+        toroidalSetupCheck = new CheckBox("Toroidal topology (wrap edges)");
+        toroidalSetupCheck.setSelected(grid.isToroidal());
+        toroidalSetupCheck.setOnAction(e -> {
+            grid.setToroidal(toroidalSetupCheck.isSelected());
+            setStatus("Topology: " + (grid.isToroidal() ? "Toroidal" : "Bounded"));
+        });
+        gridBox.getChildren().add(toroidalSetupCheck);
+
+        Button settingsBtn = styledButton("Open full settings", "#334155");
+        settingsBtn.setMaxWidth(Double.MAX_VALUE);
+        settingsBtn.setOnAction(e -> openSettings());
+        gridBox.getChildren().add(settingsBtn);
+
+        VBox populationBox = setupCard("Starting Population");
+        populationBox.getChildren().add(setupText("Choose the initial cell mix, then populate the current grid."));
+        susceptibleSlider = labelledSlider("Susceptible % of grid", 0, 100, 40, populationBox);
+        infectedSlider = labelledSlider("Infected % of grid", 0, 100, 5, populationBox);
+
+        Button populateBtn = styledButton("Random Populate", "#16a085");
+        populateBtn.setMaxWidth(Double.MAX_VALUE);
+        populateBtn.setOnAction(e -> randomPopulate());
+
+        Button clearBtn = styledButton("Clear Grid", "#c0392b");
+        clearBtn.setMaxWidth(Double.MAX_VALUE);
+        clearBtn.setOnAction(e -> clearGrid());
+        HBox populationActions = new HBox(10, populateBtn, clearBtn);
+        populationActions.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(populateBtn, Priority.ALWAYS);
+        HBox.setHgrow(clearBtn, Priority.ALWAYS);
+        populationBox.getChildren().add(populationActions);
+
+        VBox actionsBox = setupCard("Files & Output");
+        Button saveBtn = styledButton("Save Simulation", "#8e44ad");
+        Button loadBtn = styledButton("Load Simulation", "#2980b9");
+        Button chartBtn = styledButton("Export Chart", "#16a085");
+        saveBtn.setMaxWidth(Double.MAX_VALUE);
+        loadBtn.setMaxWidth(Double.MAX_VALUE);
+        chartBtn.setMaxWidth(Double.MAX_VALUE);
+        saveBtn.setOnAction(e -> saveSimulation());
+        loadBtn.setOnAction(e -> loadSimulation());
+        chartBtn.setOnAction(e -> exportChart());
+        actionsBox.getChildren().addAll(
+                setupText("Use these when preparing scenarios for demos or saving the current run."),
+                saveBtn,
+                loadBtn,
+                chartBtn
+        );
+
+        content.add(gridBox, 0, 0);
+        content.add(populationBox, 1, 0);
+        content.add(actionsBox, 0, 1, 2, 1);
+
+        StackPane contentWrap = new StackPane(content);
+        contentWrap.getStyleClass().add("setup-content-wrap");
+        page.setCenter(contentWrap);
+
+        ScrollPane scrollPane = new ScrollPane(page);
+        scrollPane.getStyleClass().add("setup-scroll");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        refreshSetupPage();
+        return scrollPane;
+    }
+
+    private VBox setupCard(String title) {
+        VBox card = new VBox(10);
+        card.getStyleClass().add("setup-card");
+        card.getChildren().add(sectionLabel(title));
+        return card;
+    }
+
+    private HBox setupRow(String label, Label value) {
+        Label key = new Label(label);
+        key.getStyleClass().add("setup-row-key");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox row = new HBox(10, key, spacer, value);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private Label setupValue(String text) {
+        Label value = new Label(text);
+        value.getStyleClass().add("setup-row-value");
+        return value;
+    }
+
+    private Label setupText(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("setup-help");
+        label.setWrapText(true);
+        return label;
+    }
+
+    private void refreshSetupPage() {
+        if (grid == null) return;
+        if (setupGridSizeValue != null) {
+            setupGridSizeValue.setText(grid.getWidth() + " x " + grid.getHeight() + " cells");
+        }
+        if (toroidalSetupCheck != null) {
+            toroidalSetupCheck.setSelected(grid.isToroidal());
+        }
     }
 
     private VBox sidebarSectionBox() {
@@ -1058,6 +1196,16 @@ public class MainController {
     //  Save / Load
     // ─────────────────────────────────────────────────────────────────────────
 
+    private void clearGrid() {
+        grid.clear();
+        engine = new SimulationEngine(grid);
+        statsPanel.setEngine(engine);
+        clearCellInspector();
+        gridView.redraw();
+        statsPanel.refresh();
+        setStatus("Grid cleared.");
+    }
+
     /** Saves the current simulation to a binary file chosen by the user. */
     private void saveSimulation() {
         FileChooser fc = new FileChooser();
@@ -1092,6 +1240,7 @@ public class MainController {
             clearCellInspector();
             gridView.redraw();
             statsPanel.refresh();
+            refreshSetupPage();
             setStatus("Loaded from " + file.getName() + " (step " + engine.getStepCount() + ")");
         } catch (IOException ex) {
             alert("Load error", ex.getMessage());
@@ -1432,6 +1581,7 @@ public class MainController {
             gridView.redraw();
             statsPanel.refresh();
             refreshSelectedCellInspector();
+            refreshSetupPage();
         });
     }
 

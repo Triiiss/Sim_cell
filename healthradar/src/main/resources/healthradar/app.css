@@ -31,8 +31,37 @@
     -fx-background-color: #0b1120;
 }
 
+.page-nav {
+    -fx-background-color: #111827;
+    -fx-background-radius: 8;
+    -fx-border-color: #1f2a3d;
+    -fx-border-radius: 8;
+    -fx-padding: 2;
+}
+
+.page-toggle {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-padding: 6 12 6 12;
+    -fx-cursor: hand;
+}
+
+.page-toggle:hover {
+    -fx-background-color: #1e293b;
+}
+
+.page-toggle:selected {
+    -fx-background-color: #0ea5e9;
+    -fx-text-fill: #ffffff;
+}
+
 .right-scroll,
 .right-scroll > .viewport,
+.setup-scroll,
+.setup-scroll > .viewport,
 .grid-scroll,
 .grid-scroll > .viewport {
     -fx-background-color: transparent;
@@ -40,6 +69,59 @@
 
 .grid-surface {
     -fx-background-color: #0b1120;
+}
+
+.setup-page {
+    -fx-background-color: #0b1120;
+}
+
+.setup-header {
+    -fx-padding: 20 24 12 24;
+    -fx-background-color: #0b1120;
+    -fx-border-color: transparent transparent #1f2a3d transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.setup-title {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 26px;
+    -fx-font-weight: 900;
+}
+
+.setup-subtitle,
+.setup-help {
+    -fx-text-fill: #94a3b8;
+}
+
+.setup-content-wrap {
+    -fx-padding: 18 24 24 24;
+    -fx-alignment: top-center;
+}
+
+.setup-grid {
+    -fx-max-width: 1120;
+}
+
+.setup-card {
+    -fx-background-color: #111827;
+    -fx-background-radius: 8;
+    -fx-border-color: #1f2a3d;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 14;
+}
+
+.setup-row-key {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.setup-row-value {
+    -fx-text-fill: #f8fafc;
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
 }
 
 .grid-viewport {
