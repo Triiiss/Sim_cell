@@ -7,7 +7,7 @@ public enum ZoneType {
     EDUCATION(1.5, 1),
     HEALTHCARE(1.8, 1),
     TRANSPORT(2.2, 1),
-    EMPTY_SPACE(0.0, 0);
+    EMPTY_SPACE(1.0, 0);  // neutral — no zone modifier
 
     private final double transmissionMultiplier;
     private final int radiusOverride;

@@ -105,6 +105,8 @@ public class MainController {
     private static final int MAX_STEP_DELAY_MS = 10_000;
     private static final double DEFAULT_CELL_SIZE = 14.0;
     private double configuredCellSize = DEFAULT_CELL_SIZE;
+    /** True when the user explicitly set a cell size via Settings. */
+    private boolean manualZoom = false;
 
     // ── Random populate sliders ───────────────────────────────────────────────
 
@@ -153,10 +155,10 @@ public class MainController {
         gridViewport.getStyleClass().add("grid-viewport");
         gridScrollPane = new ScrollPane(gridViewport);
         gridScrollPane.getStyleClass().add("grid-scroll");
-        gridScrollPane.setFitToWidth(true);
-        gridScrollPane.setFitToHeight(true);
-        gridScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        gridScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        gridScrollPane.setFitToWidth(false);
+        gridScrollPane.setFitToHeight(false);
+        gridScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        gridScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         
         gridScrollPane.setPannable(false);
 
@@ -303,13 +305,14 @@ public class MainController {
         ToggleButton brushBtn = modeToggle("Brush cells", EditMode.BRUSH, modeGroup);
         ToggleButton zoneBtn = modeToggle("Fill rectangle", EditMode.ZONE, modeGroup);
         ToggleButton indivBtn = modeToggle("Single cell", EditMode.INDIVIDUAL, modeGroup);
-        ToggleButton zoneTypeBtn = modeToggle("Zone layer", EditMode.ZONETYPE, modeGroup);
+        ToggleButton zoneTypeBtn  = modeToggle("Zone layer",     EditMode.ZONETYPE, modeGroup);
+        ToggleButton inspectBtn   = modeToggle("🔍 Inspect",     EditMode.INSPECT,  modeGroup);
         brushBtn.setTooltip(new Tooltip("Paint the selected health state while dragging."));
         zoneBtn.setTooltip(new Tooltip("Drag a rectangle and fill it with the selected health state."));
         indivBtn.setTooltip(new Tooltip("Edit one cell per click."));
         zoneTypeBtn.setTooltip(new Tooltip("Paint the urban zone layer. Zones affect transmission risk without changing health state."));
         brushBtn.setSelected(true);
-        makeFullWidth(brushBtn, zoneBtn, indivBtn, zoneTypeBtn);
+        makeFullWidth(brushBtn, zoneBtn, indivBtn, zoneTypeBtn, inspectBtn);
 
         paintStateCombo = new ComboBox<>();
         paintStateCombo.getItems().addAll("Susceptible", "Vaccinated", "Exposed", "Infected", "Recovered", "Dead", "Empty");
@@ -359,16 +362,12 @@ public class MainController {
             setStatus("Topology: " + (grid.isToroidal() ? "Toroidal" : "Bounded"));
         });
 
-        Button settingsBtn = styledButton("Full settings", "#334155");
-        settingsBtn.setMaxWidth(Double.MAX_VALUE);
-        settingsBtn.setOnAction(e -> openSettings());
-
-        setupBox.getChildren().addAll(setupActions, toroidalSetupCheck, settingsBtn);
+        setupBox.getChildren().addAll(setupActions, toroidalSetupCheck);
 
         rail.getChildren().addAll(
                 title,
                 hint,
-                toolGroup("Mode", brushBtn, zoneBtn, indivBtn, zoneTypeBtn),
+                toolGroup("Mode", brushBtn, zoneBtn, indivBtn, zoneTypeBtn, inspectBtn),
                 toolGroup("Cell state", paintStateCombo),
                 toolGroup("Zone risk layer", zoneTypeCombo),
                 toolGroup("Protection", maskBtn),
@@ -408,19 +407,37 @@ public class MainController {
         fitGridToViewport(gridScrollPane.getViewportBounds());
     }
 
+    /**
+     * Applies the cell size to the grid view.
+     * If configuredCellSize makes the grid larger than the viewport,
+     * the ScrollPane handles overflow — the grid stays at configuredCellSize
+     * and the user can scroll.
+     * If configuredCellSize would make the grid smaller than the viewport,
+     * we auto-fit to fill the available space nicely.
+     */
     private void fitGridToViewport(Bounds viewport) {
         if (viewport == null || grid == null || grid.getWidth() <= 0 || grid.getHeight() <= 0) return;
-        double availableWidth = viewport.getWidth();
+        double availableWidth  = viewport.getWidth();
         double availableHeight = viewport.getHeight();
         if (availableWidth <= 0 || availableHeight <= 0) return;
 
-        double targetCellSize = Math.min(availableWidth / grid.getWidth(),
-                availableHeight / grid.getHeight());
+        if (manualZoom) {
+            // User chose a specific cell size → apply it and let scroll handle overflow
+            gridView.setCellSize(configuredCellSize);
+            gridView.redraw();
+            return;
+        }
+
+        // Auto-fit: shrink/grow to fill the available viewport
+        double targetCellSize = Math.min(availableWidth  / grid.getWidth(),
+                                         availableHeight / grid.getHeight());
         if (Double.isNaN(targetCellSize) || Double.isInfinite(targetCellSize)) return;
         targetCellSize = Math.max(4.0, targetCellSize);
+        configuredCellSize = targetCellSize;
 
-        if (Math.abs(gridView.getCellSize() - targetCellSize) > 0.2) {
+        if (Math.abs(gridView.getCellSize() - targetCellSize) > 0.1) {
             gridView.setCellSize(targetCellSize);
+            gridView.redraw();
         }
     }
 
@@ -477,18 +494,6 @@ public class MainController {
         box.setPrefWidth(360);
         box.setMaxWidth(Double.MAX_VALUE);
         box.getStyleClass().add("side-panel");
-
-        Label title = new Label("HealthRadar");
-        title.setTextFill(Color.WHITE);
-        title.setFont(Font.font("System Bold", 19));
-
-        Label subtitle = new Label("Simulation controls");
-        subtitle.setTextFill(Color.rgb(140, 165, 190));
-        subtitle.setFont(Font.font(11));
-
-        VBox header = new VBox(1, title, subtitle);
-        header.setPadding(new Insets(0, 0, 4, 0));
-        box.getChildren().add(header);
 
         TabPane sideTabs = new TabPane();
         sideTabs.getStyleClass().add("side-tabs");
@@ -610,10 +615,13 @@ public class MainController {
         VBox panel = new VBox(7);
         panel.setPadding(new Insets(10));
         panel.getStyleClass().add("inspector-card");
+        // Force dark background regardless of OS theme
+        panel.setStyle("-fx-background-color:#0d1f35; -fx-background-radius:8;"
+                + " -fx-border-color:#2a5080; -fx-border-radius:8; -fx-border-width:1;");
 
         Label title = sectionLabel("Cell Inspector");
         Label hint = new Label("Click a grid cell to inspect its current data.");
-        hint.setTextFill(Color.rgb(170, 190, 205));
+        hint.setStyle("-fx-text-fill:#8ab4d4;");
         hint.setFont(Font.font(10));
 
         inspectorPositionValue = inspectorValue("None");
@@ -642,7 +650,7 @@ public class MainController {
 
     private HBox inspectorRow(String name, Label value) {
         Label key = new Label(name);
-        key.setTextFill(Color.rgb(145, 165, 185));
+        key.setStyle("-fx-text-fill:#a0c4e8; -fx-font-weight:bold;");
         key.setFont(Font.font("System Bold", 11));
         key.setMinWidth(92);
         HBox row = new HBox(8, key, value);
@@ -652,8 +660,8 @@ public class MainController {
 
     private Label inspectorValue(String text) {
         Label value = new Label(text);
-        value.setTextFill(Color.WHITE);
-        value.setFont(Font.font("Monospaced", 11));
+        // Force color inline so OS/theme cannot override it
+        value.setStyle("-fx-text-fill:#64d2ff; -fx-font-family:Monospace; -fx-font-size:11;");
         return value;
     }
 
@@ -736,6 +744,12 @@ public class MainController {
         if (row < 0 || col < 0) return;
 
         switch (editMode) {
+            case INSPECT -> {
+                // Inspect-only: just update the inspector, never modify the grid
+                updateCellInspector(row, col);
+                gridView.redraw();
+                return;
+            }
             case BRUSH, INDIVIDUAL -> {
                 if (!maskMode) {
                     grid.setCell(row, col, paintState);
@@ -747,7 +761,7 @@ public class MainController {
                 if (maskMode) {
                     var cell = grid.getCell(row, col);
                     if (cell != null && cell.isAlive()) {
-                        cell.setMasked(!cell.isMasked()); // Toggle le masque au clic
+                        cell.setMasked(!cell.isMasked());
                     }
                 }
                 gridView.redraw();
@@ -756,7 +770,7 @@ public class MainController {
                 gridView.setDragStartRow(row);
                 gridView.setDragStartCol(col);
             }
-            case ZONETYPE -> { // <-- Nouveau cas
+            case ZONETYPE -> {
                 var cell = grid.getCell(row, col);
                 ZoneType selectedZone = zoneTypeCombo.getValue();
                 if (cell != null && selectedZone != null) {
@@ -779,8 +793,13 @@ public class MainController {
         if (row < 0 || col < 0) return;
 
         switch (editMode) {
+            case INSPECT -> {
+                // In inspect mode, dragging updates the inspector live
+                updateCellInspector(row, col);
+                gridView.redraw();
+                return;
+            }
             case BRUSH -> {
-                // 1. Applique d'abord l'état si nécessaire
                 if (!maskMode) {
                     grid.setCell(row, col, paintState);
                 } else {
@@ -788,12 +807,10 @@ public class MainController {
                         grid.setCell(row, col, paintState);
                     }
                 }
-
-                // 2. Force le masque à 'true' pendant le glisser de souris (drag)
                 if (maskMode) {
                     var cell = grid.getCell(row, col);
                     if (cell != null && cell.isAlive()) {
-                        cell.setMasked(true); 
+                        cell.setMasked(true);
                     }
                 }
                 updateCellInspector(row, col);
@@ -1240,6 +1257,7 @@ public class MainController {
             case ZONE -> "Fill rectangle mode: drag an area, then release.";
             case INDIVIDUAL -> "Single cell mode: click one cell at a time.";
             case ZONETYPE -> "Zone layer mode: paint urban zone risk without changing health state.";
+            case INSPECT  -> "Inspect mode: click or drag to read cell stats without modifying the grid.";
         };
     }
 
@@ -1263,7 +1281,7 @@ public class MainController {
         HBox.setHgrow(lbl, Priority.ALWAYS);
 
         Label value = new Label(formatSliderValue(label, init, max));
-        value.setTextFill(Color.WHITE);
+        value.setStyle("-fx-text-fill:#64d2ff; -fx-font-family:Monospace; -fx-font-size:11;");
         value.setFont(Font.font("Monospaced", 11));
         value.setMinWidth(52);
         value.setPrefWidth(52);
@@ -1408,6 +1426,7 @@ public class MainController {
 
             // ── Toujours : taille cellule + vitesse + sync sliders ────────
             configuredCellSize = result.cellSize();
+            manualZoom = true;   // user set an explicit size → stop auto-fit
             refitGridToViewport();
             if (selectedRow >= grid.getHeight() || selectedCol >= grid.getWidth()) {
                 clearCellInspector();

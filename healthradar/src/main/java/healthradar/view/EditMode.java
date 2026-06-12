@@ -19,5 +19,7 @@ public enum EditMode {
     ZONE,
     /** Click a single cell to change its state. */
     INDIVIDUAL,
+    /** Click or drag on a cell to read its stats without modifying it. */
+    INSPECT,
     ZONETYPE
 }
