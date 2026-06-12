@@ -258,9 +258,10 @@
 }
 
 .slider .track {
-    -fx-background-color: #334155;
-    -fx-background-radius: 999;
-    -fx-pref-height: 5;
+    -fx-background-color: transparent, #334155;
+    -fx-background-insets: 0, 0;
+    -fx-background-radius: 0, 3;
+    -fx-padding: 2.5;
 }
 
 .slider .thumb {

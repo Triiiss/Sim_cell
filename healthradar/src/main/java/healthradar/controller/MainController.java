@@ -18,7 +18,6 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -1296,10 +1295,6 @@ public class MainController {
         sliderFrame.getStyleClass().add("slider-frame");
         sliderFrame.setMinWidth(0);
         sliderFrame.setMaxWidth(Double.MAX_VALUE);
-        Rectangle clip = new Rectangle();
-        clip.widthProperty().bind(sliderFrame.widthProperty());
-        clip.heightProperty().bind(sliderFrame.heightProperty());
-        sliderFrame.setClip(clip);
 
         VBox control = new VBox(4, header, sliderFrame);
         control.setMinWidth(0);
