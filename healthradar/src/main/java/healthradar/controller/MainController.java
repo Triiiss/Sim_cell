@@ -110,6 +110,7 @@ public class MainController {
 
     private Slider susceptibleSlider;
     private Slider infectedSlider;
+    private Slider moveProbSlider;
 
     // ── Disease parameter sliders ─────────────────────────────────────────────
 
@@ -253,41 +254,6 @@ public class MainController {
         diseaseCombo.setValue("Influenza");
         diseaseCombo.setOnAction(e -> onDiseaseSelected());
 
-        // ── Edit mode ─────────────────────────────────────────────────────────
-        Label modeLbl = whiteLabel("Mode:");
-        ToggleGroup modeGroup = new ToggleGroup();
-        ToggleButton brushBtn  = modeToggle("Brush",  EditMode.BRUSH,      modeGroup);
-        ToggleButton zoneBtn   = modeToggle("Zone",   EditMode.ZONE,        modeGroup);
-        ToggleButton indivBtn  = modeToggle("Individual", EditMode.INDIVIDUAL, modeGroup);
-        ToggleButton zoneTypeBtn = modeToggle("Zone Type", EditMode.ZONETYPE, modeGroup);
-        brushBtn.setSelected(true);
-
-        // ── Paint state selector ──────────────────────────────────────────────
-        Label paintLbl = whiteLabel("Paint:");
-        paintStateCombo = new ComboBox<>();
-        paintStateCombo.getItems().addAll("Susceptible","Vaccinated","Exposed","Infected","Recovered","Dead","Empty");
-        paintStateCombo.setValue("Susceptible");
-        paintStateCombo.setOnAction(e -> onPaintStateSelected());
-
-        // ── Zone Type selector ────────────────────────────────────────────────
-        Label zoneTypeLbl = whiteLabel("Zone:"); // <── AJOUT D'UN LABEL POUR LE MENU
-        zoneTypeCombo = new ComboBox<>();
-        zoneTypeCombo.getItems().addAll(ZoneType.values());
-        zoneTypeCombo.setValue(ZoneType.RESIDENTIAL);
-        
-        
-        // ── Mask toggle ───────────────────────────────────────────────────────
-        ToggleButton maskBtn = new ToggleButton("Mask");
-        maskBtn.setStyle("-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
-        maskBtn.selectedProperty().addListener((obs, o, sel) -> {
-            maskMode = sel;
-            maskBtn.setStyle(sel
-                ? "-fx-background-color:#1a6b8a; -fx-text-fill:white; -fx-font-size:11px;"
-                : "-fx-background-color:#2c3e50; -fx-text-fill:white; -fx-font-size:11px;");
-            setStatus(sel ? "Mask mode ON — paint to toggle mask on cells"
-                          : "Mask mode OFF");
-        });
-
         Button saveBtn = styledButton("Save", "#8e44ad");
         Button loadBtn = styledButton("Load", "#2980b9");
         saveBtn.setOnAction(e -> saveSimulation());
@@ -313,7 +279,6 @@ public class MainController {
                 spacer,
                 new Separator(Orientation.VERTICAL),
                 saveBtn, loadBtn,
-                new Separator(Orientation.VERTICAL),
                 settingsBtn,
                 new Separator(Orientation.VERTICAL),
                 printBtn
@@ -591,8 +556,15 @@ public class MainController {
         vaccineImmunitySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         maskInwardSlider     .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
         maskOutwardSlider    .valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
-
         diseaseTab.getChildren().add(protectionBox);
+
+        VBox movementBox = sidebarSectionBox();
+        movementBox.getChildren().add(sectionLabel("Movement Parameters"));
+        moveProbSlider = labelledSlider("Global movement probability (0.0-1.0)",
+                0.0, 1.0, 0.25, movementBox);
+        moveProbSlider.valueProperty().addListener((o, v1, v2) ->
+                applyMovementProbability(v2.doubleValue()));
+        diseaseTab.getChildren().add(movementBox);
 
         sideTabs.getTabs().addAll(
                 sidebarTab("Monitor", monitorTab),
@@ -1002,6 +974,24 @@ public class MainController {
         grid.setDisease(currentDisease);
     }
 
+    private void applyMovementProbability(double newProb) {
+        if (grid == null) return;
+
+        int width = grid.getWidth();
+        int height = grid.getHeight();
+
+        for (int r = 0; r < height; r++) {
+            for (int c = 0; c < width; c++) {
+                healthradar.model.Cell cell = grid.getCell(r, c);
+                if (cell != null && cell.isAlive()) {
+                    cell.setMoveProbability(newProb);
+                }
+            }
+        }
+        setStatus("Movement probability updated to "
+                + String.format(Locale.ROOT, "%.2f", newProb));
+    }
+
     /** Reacts to paint state combo selection. */
     private void onPaintStateSelected() {
         paintState = switch (paintStateCombo.getValue()) {
@@ -1028,6 +1018,7 @@ public class MainController {
         int iCount = (int)(total * infectedSlider   .getValue() / 100.0);
         grid.clear();
         grid.randomPopulate(sCount, iCount);
+        applyMovementProbability(moveProbSlider.getValue());
         engine = new SimulationEngine(grid);
         statsPanel.setEngine(engine);
         gridView.redraw();
