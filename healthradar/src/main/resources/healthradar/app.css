@@ -249,6 +249,14 @@
     -fx-background-color: #1e293b;
 }
 
+.slider-frame {
+    -fx-padding: 0 16 0 16;
+}
+
+.card-slider {
+    -fx-padding: 0;
+}
+
 .slider .track {
     -fx-background-color: #334155;
     -fx-background-radius: 999;

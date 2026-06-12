@@ -18,6 +18,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -1287,16 +1288,20 @@ public class MainController {
         s.setShowTickMarks(false);
         s.setMinWidth(0);
         s.setMaxWidth(Double.MAX_VALUE);
+        s.getStyleClass().add("card-slider");
         s.valueProperty().addListener((obs, oldValue, newValue) ->
                 value.setText(formatSliderValue(label, newValue.doubleValue(), max)));
 
-        HBox sliderRow = new HBox(s);
-        sliderRow.setMinWidth(0);
-        sliderRow.setMaxWidth(Double.MAX_VALUE);
-        sliderRow.setPadding(new Insets(0, 7, 0, 7));
-        HBox.setHgrow(s, Priority.ALWAYS);
+        StackPane sliderFrame = new StackPane(s);
+        sliderFrame.getStyleClass().add("slider-frame");
+        sliderFrame.setMinWidth(0);
+        sliderFrame.setMaxWidth(Double.MAX_VALUE);
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(sliderFrame.widthProperty());
+        clip.heightProperty().bind(sliderFrame.heightProperty());
+        sliderFrame.setClip(clip);
 
-        VBox control = new VBox(4, header, sliderRow);
+        VBox control = new VBox(4, header, sliderFrame);
         control.setMinWidth(0);
         control.setMaxWidth(Double.MAX_VALUE);
         control.setFillWidth(true);
