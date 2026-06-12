@@ -84,9 +84,9 @@ public class Grid implements Serializable {
      * @param col   column index
      * @param state desired state
      */
-    public void setCell(int row, int col, CellState state) {
+    public void setCell(int row, int col, CellState state){
         if (!inBounds(row, col)) return;
-        cells[row][col] = (state == CellState.EMPTY) ? new Cell() : new Cell(state, cells[row][col].getZoneType(),rng);
+        cells[row][col] = (state == CellState.EMPTY) ? new Cell(cells[row][col].getZoneType()) : new Cell(state, cells[row][col].getZoneType(),rng);
     }
 
     /**

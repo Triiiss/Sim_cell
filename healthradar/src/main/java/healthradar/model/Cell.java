@@ -86,6 +86,18 @@ public class Cell implements Serializable {
         this.moveProbability = 0;
     }
 
+    /**
+     * Creates an EMPTY cell placeholder with a zone.
+     */
+    public Cell(ZoneType type) {
+        this.state = CellState.EMPTY;
+        this.zoneType = type;
+        this.stateAge = 0;
+        this.resistance = 0;
+        this.baseMoveProbability = 0;
+        this.moveProbability = 0;
+    }
+
     // ── Accessors ─────────────────────────────────────────────────────────────
 
     /** @return current state of this cell */

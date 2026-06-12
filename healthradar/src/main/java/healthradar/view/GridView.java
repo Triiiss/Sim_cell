@@ -34,18 +34,18 @@ public class GridView extends Canvas {
 
     private static final Color COLOR_SUSCEPTIBLE = Color.rgb( 59, 130, 246);
     private static final Color COLOR_VACCINATED  = Color.rgb(167, 139, 250);
-    private static final Color COLOR_EXPOSED     = Color.rgb(245, 158,  11);
+    private static final Color COLOR_EXPOSED     = Color.rgb(255, 162, 0);
     private static final Color COLOR_INFECTED    = Color.rgb(239,  68,  68);
     private static final Color COLOR_RECOVERED   = Color.rgb( 34, 197,  94);
     private static final Color COLOR_DEAD        = Color.rgb(100, 116, 139);
 
+    private static final Color COLOR_ZONE_TRANSPORT   = Color.rgb(198, 200, 201);
     private static final Color COLOR_ZONE_EMPTY_SPACE = Color.rgb(241, 245, 249);
-    private static final Color COLOR_ZONE_RESIDENTIAL = Color.rgb(219, 234, 254);
-    private static final Color COLOR_ZONE_TRANSPORT   = Color.rgb(203, 213, 225);
-    private static final Color COLOR_ZONE_COMMERCIAL  = Color.rgb(207, 250, 254);
-    private static final Color COLOR_ZONE_WORK        = Color.rgb(224, 231, 255);
-    private static final Color COLOR_ZONE_EDU         = Color.rgb(254, 243, 199);
-    private static final Color COLOR_ZONE_HEALTHCARE  = Color.rgb(220, 252, 231);
+    private static final Color COLOR_ZONE_RESIDENTIAL = Color.rgb(175, 202, 246);
+    private static final Color COLOR_ZONE_HEALTHCARE  = Color.rgb(125, 238, 165);
+    private static final Color COLOR_ZONE_COMMERCIAL  = Color.rgb(233, 237, 133);
+    private static final Color COLOR_ZONE_EDU         = Color.rgb(232, 187, 110);
+    private static final Color COLOR_ZONE_WORK        = Color.rgb(249, 174, 174);
     
     private static final Color COLOR_GRID_LINE = Color.rgb(203, 213, 225);
 
