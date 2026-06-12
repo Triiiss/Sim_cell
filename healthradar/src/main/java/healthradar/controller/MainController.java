@@ -235,7 +235,7 @@ public class MainController {
         // ── Play / Pause ──────────────────────────────────────────────────────
         Button playBtn  = styledButton("▶ Play",  "#2ecc71");
         Button pauseBtn = styledButton("⏸ Pause", "#e67e22");
-        Button stepBtn  = styledButton("⏭ Step",  "#3498db");
+        Button stepBtn  = styledButton("⏭ Day",   "#3498db");
         Button resetBtn = styledButton("↺ Reset", "#e74c3c");
 
         playBtn.setOnAction(e  -> startSimulation());
@@ -461,6 +461,8 @@ public class MainController {
 
     private VBox toolGroup(String title, Node... controls) {
         VBox group = new VBox(7);
+        group.setMinWidth(0);
+        group.setMaxWidth(Double.MAX_VALUE);
         group.getStyleClass().add("tool-group");
 
         Label label = new Label(title);
@@ -551,17 +553,17 @@ public class MainController {
         airborneCheck.setSelected(currentDisease.isAirborne());
         airborneCheck.setOnAction(e -> applyDiseaseParams());
 
-        transmissionSlider = labelledSlider("Transmission rate  (0.01–1.0)",
+        transmissionSlider = labelledSlider("Transmission (0.01-1.0)",
                 0.01, 1.0, currentDisease.getTransmissionRate(), diseaseBox);
-        mortalitySlider    = labelledSlider("Mortality rate     (0.0-0.5)",
+        mortalitySlider    = labelledSlider("Mortality (0.0-0.5)",
                 0.0,  0.5, currentDisease.getMortalityRate(),    diseaseBox);
-        radiusSlider       = labelledSlider("Airborne radius    (1-10 cells)",
+        radiusSlider       = labelledSlider("Airborne radius (1-10 cells)",
                 1, 10, currentDisease.getTransmissionRadius(),   diseaseBox);
-        incubationSlider   = labelledSlider("Incubation steps   (1-30)",
+        incubationSlider   = labelledSlider("Incubation days (1-30)",
                 1, 30, currentDisease.getIncubationPeriod(),     diseaseBox);
-        infectionDurSlider = labelledSlider("Infection steps    (1-60)",
+        infectionDurSlider = labelledSlider("Infectious days (1-60)",
                 1, 60, currentDisease.getInfectionDuration(),    diseaseBox);
-        immunitySlider     = labelledSlider("Immunity steps     (1-120)",
+        immunitySlider     = labelledSlider("Immunity days (1-120)",
                 1, 120, currentDisease.getImmunityDuration(),    diseaseBox);
 
         transmissionSlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
@@ -576,13 +578,13 @@ public class MainController {
 
         VBox protectionBox = sidebarSectionBox();
         protectionBox.getChildren().add(sectionLabel("Vaccine & Mask Parameters"));
-        vaccineEfficacySlider = labelledSlider("Vaccine efficacy    (0.0-1.0)",
+        vaccineEfficacySlider = labelledSlider("Vaccine efficacy (0.0-1.0)",
                 0.0, 1.0, currentDisease.getVaccineEfficacy(), protectionBox);
-        vaccineImmunitySlider = labelledSlider("Vaccine immunity steps (1-500)",
+        vaccineImmunitySlider = labelledSlider("Vaccine immunity days (1-500)",
                 1, 500, currentDisease.getVaccineImmunityDuration(), protectionBox);
-        maskInwardSlider  = labelledSlider("Mask inward efficacy  (0.0-1.0)",
+        maskInwardSlider  = labelledSlider("Mask inward (0.0-1.0)",
                 0.0, 1.0, currentDisease.getMaskInwardEfficacy(), protectionBox);
-        maskOutwardSlider = labelledSlider("Mask outward efficacy (0.0-1.0)",
+        maskOutwardSlider = labelledSlider("Mask outward (0.0-1.0)",
                 0.0, 1.0, currentDisease.getMaskOutwardEfficacy(), protectionBox);
 
         vaccineEfficacySlider.valueProperty().addListener((o, v1, v2) -> applyDiseaseParams());
@@ -593,9 +595,10 @@ public class MainController {
         diseaseTab.getChildren().add(protectionBox);
 
         sideTabs.getTabs().addAll(
-                sidebarTab("Disease", diseaseTab),
-                sidebarTab("Monitor", monitorTab)
+                sidebarTab("Monitor", monitorTab),
+                sidebarTab("Disease", diseaseTab)
         );
+        sideTabs.getSelectionModel().selectFirst();
         box.getChildren().add(sideTabs);
 
         return box;
@@ -615,6 +618,8 @@ public class MainController {
     private VBox sidebarSectionBox() {
         VBox section = new VBox(8);
         section.setPadding(new Insets(10));
+        section.setMinWidth(0);
+        section.setMaxWidth(Double.MAX_VALUE);
         section.getStyleClass().add("section-card");
         return section;
     }
@@ -906,7 +911,7 @@ public class MainController {
     private void pauseSimulation() {
         running = false;
         animationTimer.stop();
-        setStatus("Paused at step " + engine.getStepCount());
+        setStatus("Paused at day " + engine.getStepCount());
     }
 
     /** Advances one step and refreshes the UI. */
@@ -915,7 +920,7 @@ public class MainController {
         gridView.redraw();
         statsPanel.refresh();
         refreshSelectedCellInspector();
-        setStatus("Step " + engine.getStepCount());
+        setStatus("Day " + engine.getStepCount());
     }
 
     /** Resets the simulation to an empty grid. */
@@ -1086,7 +1091,7 @@ public class MainController {
             gridView.redraw();
             statsPanel.refresh();
             refreshSetupControls();
-            setStatus("Loaded from " + file.getName() + " (step " + engine.getStepCount() + ")");
+            setStatus("Loaded from " + file.getName() + " (day " + engine.getStepCount() + ")");
         } catch (IOException ex) {
             alert("Load error", ex.getMessage());
         }
@@ -1130,9 +1135,9 @@ public class MainController {
     private MenuButton buildDelayMenu() {
         delayMenuButton = new MenuButton("Delay: " + formatStepDelay(currentStepDelayMs()));
         delayMenuButton.getStyleClass().add("delay-menu");
-        delayMenuButton.setTooltip(new Tooltip("Delay between automatic steps. Higher means slower."));
+        delayMenuButton.setTooltip(new Tooltip("Delay between automatic simulation days. Higher means slower."));
 
-        Label caption = new Label("Step delay");
+        Label caption = new Label("Auto delay");
         caption.getStyleClass().add("menu-caption");
         stepDelayValueLabel = new Label(formatStepDelay(currentStepDelayMs()));
         stepDelayValueLabel.getStyleClass().add("menu-value");
@@ -1262,25 +1267,38 @@ public class MainController {
         lbl.setTextFill(Color.rgb(190, 205, 220));
         lbl.setFont(Font.font(11));
         lbl.setWrapText(true);
+        lbl.setMinWidth(0);
+        lbl.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(lbl, Priority.ALWAYS);
 
         Label value = new Label(formatSliderValue(label, init, max));
         value.setTextFill(Color.WHITE);
         value.setFont(Font.font("Monospaced", 11));
         value.setMinWidth(52);
+        value.setPrefWidth(52);
+        value.setMaxWidth(52);
         value.setAlignment(Pos.CENTER_RIGHT);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(8, lbl, spacer, value);
+        HBox header = new HBox(8, lbl, value);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setMinWidth(0);
 
         Slider s = new Slider(min, max, init);
         s.setShowTickMarks(false);
+        s.setMinWidth(0);
         s.setMaxWidth(Double.MAX_VALUE);
         s.valueProperty().addListener((obs, oldValue, newValue) ->
                 value.setText(formatSliderValue(label, newValue.doubleValue(), max)));
 
-        VBox control = new VBox(4, header, s);
+        HBox sliderRow = new HBox(s);
+        sliderRow.setMinWidth(0);
+        sliderRow.setMaxWidth(Double.MAX_VALUE);
+        sliderRow.setPadding(new Insets(0, 7, 0, 7));
+        HBox.setHgrow(s, Priority.ALWAYS);
+
+        VBox control = new VBox(4, header, sliderRow);
+        control.setMinWidth(0);
+        control.setMaxWidth(Double.MAX_VALUE);
         control.setFillWidth(true);
         box.getChildren().add(control);
         return s;

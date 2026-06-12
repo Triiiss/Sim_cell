@@ -109,7 +109,7 @@ public class StatsPanel extends VBox {
 
         // Title
         gc.setFill(Color.WHITE);
-        gc.fillText("Step: " + s.step(), 8, 18);
+        gc.fillText("Day: " + s.step(), 8, 18);
 
         int total = s.totalLiving() + s.dead();
         int peakInfected = engine.getHistory().stream()

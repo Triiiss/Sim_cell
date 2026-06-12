@@ -136,7 +136,7 @@ public class ChartExporter {
         g.setColor(C_AXIS);
         g.setFont(new Font("SansSerif", Font.PLAIN, 13));
         String sub = "Disease: " + engine.getGrid().getDisease().getName()
-                + "   |   " + engine.getStepCount() + " steps recorded";
+                + "   |   " + engine.getStepCount() + " days recorded";
         g.drawString(sub, PAD_L, 60);
     }
 
@@ -170,7 +170,7 @@ public class ChartExporter {
         // X axis
         g.drawLine(PAD_L, PAD_T + PLOT_H, PAD_L + PLOT_W, PAD_T + PLOT_H);
 
-        // X-axis labels (step numbers, up to 10 ticks)
+        // X-axis labels (simulated day numbers, up to 10 ticks)
         int n = history.size();
         int tickCount = Math.min(10, n);
         g.setFont(new Font("Monospaced", Font.PLAIN, 11));
@@ -188,7 +188,7 @@ public class ChartExporter {
         // Axis labels
         g.setFont(new Font("SansSerif", Font.BOLD, 12));
         g.setColor(C_AXIS);
-        g.drawString("Step", PAD_L + PLOT_W / 2 - 15, PAD_T + PLOT_H + 35);
+        g.drawString("Day", PAD_L + PLOT_W / 2 - 15, PAD_T + PLOT_H + 35);
 
         // Rotated Y label
         Graphics2D g2 = (Graphics2D) g.create();
@@ -256,7 +256,7 @@ public class ChartExporter {
     private static void drawFooter(Graphics2D g, SimulationEngine engine) {
         g.setFont(new Font("SansSerif", Font.PLAIN, 10));
         g.setColor(new Color(100, 100, 130));
-        String info = "Exported at step " + engine.getStepCount()
+        String info = "Exported at day " + engine.getStepCount()
                 + "  |  HealthRadar – CY Tech ING1 GI1";
         g.drawString(info, PAD_L, IMG_H - 12);
     }

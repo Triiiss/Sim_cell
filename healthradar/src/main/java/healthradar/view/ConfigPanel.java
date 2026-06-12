@@ -326,9 +326,9 @@ public class ConfigPanel {
                 rowWithVal("Exposed transmission factor (0–1):", expFactor, expFactorLbl),
                 rowWithVal("Transmission rate (0.01–1.0):", tx, txLbl),
                 rowWithVal("Mortality rate    (0.0–0.5):",  mort, mortLbl),
-                rowWithVal("Incubation steps  (1–30):",     incub, incLbl),
-                rowWithVal("Infection steps   (1–60):",     dur,   durLbl),
-                rowWithVal("Immunity steps    (1–120):",    immun, immLbl),
+                rowWithVal("Incubation days   (1-30):",     incub, incLbl),
+                rowWithVal("Infectious days   (1-60):",     dur,   durLbl),
+                rowWithVal("Immunity days     (1-120):",    immun, immLbl),
                 rowWithVal("Airborne radius   (1–10):",     rad,   radLbl),
                 sep(),
                 sectionLabel("Disease Library"),
@@ -354,8 +354,8 @@ public class ConfigPanel {
         VBox box = tabBox();
         box.getChildren().addAll(
                 sectionLabel("Simulation Speed"),
-                rowWithVal("Step delay ms (50-10000):", delay, dLbl),
-                note("50 ms = very fast. 10000 ms = one step every 10 seconds."),
+                rowWithVal("Auto delay ms (50-10000):", delay, dLbl),
+                note("50 ms = very fast. 10000 ms = one simulated day every 10 seconds."),
                 sep(),
                 sectionLabel("Display"),
                 rowWithVal("Cell size px  (4–24):",   cell, cLbl),
