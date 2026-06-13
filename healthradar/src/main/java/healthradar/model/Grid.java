@@ -356,6 +356,7 @@ public class Grid implements Serializable {
                     spreadRate[r][c] *= (1.0 - disease.getMaskOutwardEfficacy());
 
         int radius = disease.isAirborne() ? disease.getTransmissionRadius() : 1;
+        int radiusSquared = radius * radius;
 
         for (int r = 0; r < height; r++) {
             for (int c = 0; c < width; c++) {
@@ -365,8 +366,11 @@ public class Grid implements Serializable {
                     for (int dc = -radius; dc <= radius; dc++) {
                         if (dr == 0 && dc == 0) continue;
 
-                        double distance = Math.sqrt(dr * dr + dc * dc);
-                        if (disease.isAirborne() && distance > radius) continue;
+                        // Compare squared distances first to avoid a sqrt on
+                        // every candidate cell; only cells within the radius
+                        // need the real (rooted) distance later on.
+                        int distanceSquared = dr * dr + dc * dc;
+                        if (disease.isAirborne() && distanceSquared > radiusSquared) continue;
 
                         int nr = r + dr;
                         int nc = c + dc;
@@ -392,6 +396,7 @@ public class Grid implements Serializable {
                         // a zero distance or zero/negative factor to avoid
                         // dividing by zero.
                         if (disease.isAirborne()) {
+                            double distance = Math.sqrt(distanceSquared);
                             double attenuation = distance * disease.getAirborneAttenuationFactor();
                             if (attenuation > 0)
                                 baseRate /= attenuation;
