@@ -140,12 +140,12 @@ public class Cell implements Serializable {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /**
-     * Ajuste la probabilité de mouvement finale en multipliant la valeur de base.
-     * @param factor 1.0 = normal (0.1 à 0.4), 0.0 = confinement total (0.0 partout)
+     /**
+     * Adjusts the final movement probability by multiplying the base value.
+     * @param factor 1.0 = normal (0.1 to 0.4), 0.0 = total confinement (0.0 everywhere)
      */
     public void adjustMovementWithFactor(double factor) {
-        // Permet de descendre à 0.0 sans restriction et de brider au maximum à 1.0
+        // Allows values to go down to 0.0 without restriction and caps the maximum at 1.0
         this.moveProbability = Math.max(0.0, Math.min(1.0, this.baseMoveProbability * factor));
     }
 
