@@ -291,12 +291,16 @@ public class Grid implements Serializable {
         futureTarget.setResistance(currentAgent.getResistance());
         futureTarget.setMoveProbability(currentAgent.getMoveProbability());
         futureTarget.setMasked(currentAgent.isMasked());
+        // Copy destination (guidance)
+        futureTarget.setDestination(currentAgent.getDestRow(), currentAgent.getDestCol());
 
         futureSource.setState(CellState.EMPTY);
         futureSource.setStateAge(0);
         futureSource.setResistance(0);
         futureSource.setMoveProbability(0);
         futureSource.setMasked(false);
+        // Reset the destination of the old cell 
+        futureSource.setDestination(-1, -1);
     }
 }
 
