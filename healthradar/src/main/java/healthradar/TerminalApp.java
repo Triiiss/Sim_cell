@@ -697,7 +697,7 @@ public class TerminalApp {
         System.out.println();
         System.out.print("  Save file path  (default=simulation.hrs): ");
         String path = readLine();
-        if (path.isEmpty()) path = "save/simulation.hrs";
+        if (path.isEmpty()) path = "scenario/simulation.hrs";
         try {
             SimulationSerializer.save(engine, Paths.get(path));
             ok("Saved to " + path);
@@ -718,7 +718,7 @@ public class TerminalApp {
     private void loadSimulation() {
         System.out.println();
         // List .hrs files in the current working directory
-        java.io.File cwd = new java.io.File(System.getProperty("user.dir"), "save");
+        java.io.File cwd = new java.io.File(System.getProperty("user.dir"), "scenario");
         java.io.File[] hrs = cwd.listFiles(
                 (dir, name) -> name.toLowerCase().endsWith(".hrs"));
         if (hrs != null && hrs.length > 0) {
