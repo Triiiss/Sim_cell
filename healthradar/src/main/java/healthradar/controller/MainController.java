@@ -1392,7 +1392,7 @@ public class MainController {
             currentDisease = result.disease();
 
             if (result.restart()) {
-                // ── Apply & Restart : recrée la grille et repeuple ────────
+                // ── Apply & Restart : recreate the grid and repopulate it ────────
                 grid = new Grid(result.gridWidth(), result.gridHeight(),
                         result.toroidal(), currentDisease, 0);
                 grid.randomPopulate(result.susceptibleCount(), result.infectedCount());
@@ -1403,11 +1403,11 @@ public class MainController {
                 setStatus("Grid restarted: " + result.gridWidth() + "×"
                         + result.gridHeight() + "  " + currentDisease.getName());
             } else {
-                // ── Apply Only : garde la grille actuelle ─────────────────
+                // ── Apply Only : keep the current schedule ─────────────────
                 if (result.gridWidth()  != grid.getWidth()
                  || result.gridHeight() != grid.getHeight()
                  || result.toroidal()   != grid.isToroidal()) {
-                    // Dimensions changées : nouvelle grille vide
+                    // Dimensions changed: new empty grid
                     grid = new Grid(result.gridWidth(), result.gridHeight(),
                             result.toroidal(), currentDisease, 0);
                     engine = new SimulationEngine(grid);
@@ -1417,14 +1417,14 @@ public class MainController {
                     setStatus("Grid resized to " + result.gridWidth() + "×"
                             + result.gridHeight() + " — use Populate to fill it.");
                 } else {
-                    // Mêmes dimensions : applique la maladie sur la grille en cours
+                    // Same dimensions: applies the effect to the current grid
                     grid.setDisease(currentDisease);
                     setStatus("Settings applied (grid preserved): "
                             + currentDisease.getName());
                 }
             }
 
-            // ── Toujours : taille cellule + vitesse + sync sliders ────────
+            // ── Always: cell size + speed + sync sliders ────────
             configuredCellSize = result.cellSize();
             manualZoom = true;   // user set an explicit size → stop auto-fit
             refitGridToViewport();
