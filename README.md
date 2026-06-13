@@ -22,6 +22,59 @@ For HealthRadar, the chosen context is disease propagation in a city:
   protection, movement, and zone risk;
 - the user can edit the grid, paint urban zones, and observe live statistics.
 
+## Run with the Makefile (Linux / macOS)
+
+Install OpenJFX if needed:
+
+```bash
+sudo apt install openjfx        # Debian / Ubuntu / Mint
+```
+
+From the `healthradar/` directory:
+
+```bash
+# Compile + run the JavaFX application
+make run
+
+# Compile + run the terminal application
+make run-terminal
+
+# Build JARs only
+make jar
+make jar-terminal
+
+# Generate JavaDoc
+make doc
+
+# Clean build artefacts
+make clean
+```
+
+If JavaFX is installed in a non-standard location, override the path:
+
+```bash
+export JAVAFX_LIB=/path/to/javafx-sdk/lib
+make run
+```
+
+## Run with Maven (Windows / cross-platform)
+
+From the repository root:
+
+```bash
+mvn clean compile
+
+# JavaFX application
+mvn javafx:run
+
+# Terminal application
+mvn clean compile
+java -cp target/classes healthradar.TerminalApp
+
+# Package
+mvn clean package
+```
+
 ## Features
 
 ### Epidemiological model (SVEIRD)
@@ -152,58 +205,6 @@ transmission rate:
 - **Linux / macOS (Makefile):** OpenJFX installed system-wide.
 - **Windows / all platforms (Maven):** Maven resolves JavaFX automatically.
 
-## Run with the Makefile (Linux / macOS)
-
-Install OpenJFX if needed:
-
-```bash
-sudo apt install openjfx        # Debian / Ubuntu / Mint
-```
-
-From the `healthradar/` directory:
-
-```bash
-# Compile + run the JavaFX application
-make run
-
-# Compile + run the terminal application
-make run-terminal
-
-# Build JARs only
-make jar
-make jar-terminal
-
-# Generate JavaDoc
-make doc
-
-# Clean build artefacts
-make clean
-```
-
-If JavaFX is installed in a non-standard location, override the path:
-
-```bash
-export JAVAFX_LIB=/path/to/javafx-sdk/lib
-make run
-```
-
-## Run with Maven (Windows / cross-platform)
-
-From the repository root:
-
-```bash
-mvn clean compile
-
-# JavaFX application
-mvn javafx:run
-
-# Terminal application
-mvn clean compile
-java -cp target/classes healthradar.TerminalApp
-
-# Package
-mvn clean package
-```
 
 ## IntelliJ Setup
 
