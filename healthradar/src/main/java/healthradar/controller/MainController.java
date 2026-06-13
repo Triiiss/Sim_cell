@@ -821,7 +821,7 @@ public class MainController {
                 gridView.drawZoneSelection(row, col);
             }
             case INDIVIDUAL -> { /* handled on press only */ }
-            case ZONETYPE -> { // <-- Nouveau cas
+            case ZONETYPE -> { // <-- New case
                 var cell = grid.getCell(row, col);
                 ZoneType selectedZone = zoneTypeCombo.getValue();
                 if (cell != null && selectedZone != null) {
@@ -846,16 +846,16 @@ public class MainController {
         int r1 = gridView.getDragStartRow(), c1 = gridView.getDragStartCol();
         if (r1 < 0) return;
         
-        // 1. On remplit d'abord la zone avec l'état sélectionné (ex: Susceptible, Infected...)
-        // Si on veut juste mettre un masque sur des cellules existantes sans changer leur état,
-        // on évite de vider la grille en vérifiant si paintState n'est pas "Empty" par défaut.
+        // 1. First, fill the area with the selected state (e.g. Susceptible, Infected...)
+        // If you just want to mask existing cells without changing their state,
+        // avoid clearing the grid by checking that paintState is not set to ‘Empty’ by default.
         if (!maskMode || paintState != CellState.EMPTY) {
             grid.fillArea(r1, c1, row, col, paintState);
         }
         
-        // 2. Si le mode masque est activé, on applique le masque sur toute la zone sélectionnée
+        // 2. If mask mode is enabled, the mask is applied to the entire selected area
         if (maskMode) {
-            // Détermination des bornes min/max pour gérer le glisser de souris dans tous les sens
+            // Determining the minimum and maximum limits to handle mouse dragging in all directions
             int startRow = Math.min(r1, row);
             int endRow   = Math.max(r1, row);
             int startCol = Math.min(c1, col);
