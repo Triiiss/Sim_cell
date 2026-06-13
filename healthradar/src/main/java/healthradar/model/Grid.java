@@ -219,8 +219,22 @@ public class Grid implements Serializable {
             }
         }
 
-        // 5. On applique la grille future
-        this.cells = nextCells;
+        // Execute the move
+        int nextR = chosen[0], nextC = chosen[1];
+        Cell futureSource = next[r][c];
+        Cell futureTarget = next[nextR][nextC];
+
+        futureTarget.setState(currentAgent.getState());
+        futureTarget.setStateAge(currentAgent.getStateAge());
+        futureTarget.setResistance(currentAgent.getResistance());
+        futureTarget.setMoveProbability(currentAgent.getMoveProbability());
+        futureTarget.setMasked(currentAgent.isMasked());
+
+        futureSource.setState(CellState.EMPTY);
+        futureSource.setStateAge(0);
+        futureSource.setResistance(0);
+        futureSource.setMoveProbability(0);
+        futureSource.setMasked(false);
     }
 
     /**
