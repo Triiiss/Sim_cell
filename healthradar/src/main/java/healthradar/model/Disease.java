@@ -65,6 +65,16 @@ public class Disease implements Serializable {
     private int transmissionRadius;
 
     /**
+     * Additional multiplicative factor applied to the Euclidean distance in
+     * the airborne distance-decay formula:
+     * <pre>effectiveProbability = baseRate / (distance * airborneAttenuationFactor)</pre>
+     * Values &gt; 1.0 make transmission fall off faster with distance; values
+     * in (0, 1.0) make it fall off more slowly. Default = 1.0 (plain 1/distance
+     * decay). Ignored for contact-mode diseases.
+     */
+    private double airborneAttenuationFactor = 1.0;
+
+    /**
      * If true, cells in the EXPOSED (incubating) state can also transmit the
      * disease, but at a reduced rate defined by {@link #exposedTransmissionFactor}.
      * This models pre-symptomatic contagion (e.g. COVID-19).
@@ -157,6 +167,9 @@ public class Disease implements Serializable {
     /** @return transmission radius for airborne mode */
     public int getTransmissionRadius() { return transmissionRadius; }
 
+    /** @return the airborne distance-decay attenuation factor (default 1.0) */
+    public double getAirborneAttenuationFactor() { return airborneAttenuationFactor; }
+
     // ── Vaccine parameters ────────────────────────────────────────────────────
 
     /**
@@ -236,6 +249,15 @@ public class Disease implements Serializable {
 
     /** @param radius new transmission radius */
     public void setTransmissionRadius(int radius) { this.transmissionRadius = radius; }
+
+    /**
+     * @param factor new airborne attenuation factor; must be strictly positive.
+     *               Non-positive values are ignored (kept at the previous value)
+     *               to avoid a division by zero in the distance-decay formula.
+     */
+    public void setAirborneAttenuationFactor(double factor) {
+        if (factor > 0) this.airborneAttenuationFactor = factor;
+    }
 
     /** @param contagious true to enable pre-symptomatic transmission */
     public void setContagiousInExposed(boolean contagious) { this.contagiousInExposed = contagious; }

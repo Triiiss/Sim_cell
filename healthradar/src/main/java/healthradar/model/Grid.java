@@ -239,6 +239,17 @@ public class Grid implements Serializable {
      *       further multiplied by (1 − maskInwardEfficacy).</li>
      * </ul>
      *
+     * <h3>Distance attenuation (airborne only)</h3>
+     * <p>For airborne diseases, the probability decreases with the Euclidean
+     * distance between the spreader and the target: {@code baseRate} is divided
+     * by {@code distance * disease.getAirborneAttenuationFactor()}, so a
+     * neighbour at distance 1 (with the default factor of 1.0) receives the
+     * full rate while a target near the edge of {@code transmissionRadius}
+     * receives only a fraction of it (e.g. 1/3 of the base rate at distance 3
+     * for a radius-3 disease). The attenuation factor lets a disease fall off
+     * faster (&gt; 1.0) or slower (&lt; 1.0) with distance. Contact-mode
+     * diseases (radius 1) are unaffected.</p>
+     *
      * @param grid the working copy of the grid
      */
     private void infectionPhase(Cell[][] grid) {
@@ -268,6 +279,7 @@ public class Grid implements Serializable {
                     spreadRate[r][c] *= (1.0 - disease.getMaskOutwardEfficacy());
 
         int radius = disease.isAirborne() ? disease.getTransmissionRadius() : 1;
+        int radiusSquared = radius * radius;
 
         for (int r = 0; r < height; r++) {
             for (int c = 0; c < width; c++) {
@@ -276,7 +288,12 @@ public class Grid implements Serializable {
                 for (int dr = -radius; dr <= radius; dr++) {
                     for (int dc = -radius; dc <= radius; dc++) {
                         if (dr == 0 && dc == 0) continue;
-                        if (disease.isAirborne() && Math.sqrt(dr*dr + dc*dc) > radius) continue;
+
+                        // Compare squared distances first to avoid a sqrt on
+                        // every candidate cell; only cells within the radius
+                        // need the real (rooted) distance later on.
+                        int distanceSquared = dr * dr + dc * dc;
+                        if (disease.isAirborne() && distanceSquared > radiusSquared) continue;
 
                         int nr = r + dr;
                         int nc = c + dc;
@@ -292,6 +309,19 @@ public class Grid implements Serializable {
 
                         // Base probability
                         double baseRate = spreadRate[r][c];
+
+                        // Distance attenuation: airborne transmission grows
+                        // weaker the farther the target is from the source
+                        // (inverse-distance falloff, distance >= 1), scaled by
+                        // the disease's airborneAttenuationFactor. Guard against
+                        // a zero distance or zero/negative factor to avoid
+                        // dividing by zero.
+                        if (disease.isAirborne()) {
+                            double distance = Math.sqrt(distanceSquared);
+                            double attenuation = distance * disease.getAirborneAttenuationFactor();
+                            if (attenuation > 0)
+                                baseRate /= attenuation;
+                        }
 
                         // Vaccine inward protection
                         if (tst == CellState.VACCINATED)
