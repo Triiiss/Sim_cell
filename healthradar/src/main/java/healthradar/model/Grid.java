@@ -84,9 +84,9 @@ public class Grid implements Serializable {
      * @param col   column index
      * @param state desired state
      */
-    public void setCell(int row, int col, CellState state) {
+    public void setCell(int row, int col, CellState state){
         if (!inBounds(row, col)) return;
-        cells[row][col] = (state == CellState.EMPTY) ? new Cell() : new Cell(state, cells[row][col].getZoneType(), rng);
+        cells[row][col] = (state == CellState.EMPTY) ? new Cell(cells[row][col].getZoneType()) : new Cell(state, cells[row][col].getZoneType(),rng);
     }
 
     /**
@@ -123,49 +123,7 @@ public class Grid implements Serializable {
             setCell(positions.get(idx)[0], positions.get(idx)[1], CellState.SUSCEPTIBLE);
         for (int i = 0; i < infectedCount && idx < positions.size(); i++, idx++)
             setCell(positions.get(idx)[0], positions.get(idx)[1], CellState.INFECTED);
-          assignDestinationsByZone();
     }
-
-    /**
-    * Assigns a destination to each live cell based on its zone:
-    * - RESIDENTIAL cells are assigned a random WORK cell.
-    * - WORK cells are assigned a random RESIDENTIAL cell.
-    * - Other zones have no destination (standard random walk).
-    * Must be called after the grid has been populated or loaded.
- */
-
-    public void assignDestinationsByZone() {
-    List<int[]> residentials = new ArrayList<>();
-    List<int[]> works = new ArrayList<>();
-    for (int r = 0; r < height; r++) {
-        for (int c = 0; c < width; c++) {
-            ZoneType z = cells[r][c].getZoneType();
-            if (z == ZoneType.RESIDENTIAL) {
-                residentials.add(new int[]{r, c});
-            } else if (z == ZoneType.WORK) {
-                works.add(new int[]{r, c});
-            }
-        }
-    }
-    if (residentials.isEmpty() || works.isEmpty()) return;
-
-    for (int r = 0; r < height; r++) {
-        for (int c = 0; c < width; c++) {
-            Cell cell = cells[r][c];
-            if (!cell.isAlive()) continue;
-            ZoneType zone = cell.getZoneType();
-            if (zone == ZoneType.RESIDENTIAL) {
-                int[] target = works.get(rng.nextInt(works.size()));
-                cell.setDestination(target[0], target[1]);
-            } else if (zone == ZoneType.WORK) {
-                int[] target = residentials.get(rng.nextInt(residentials.size()));
-                cell.setDestination(target[0], target[1]);
-            } else {
-                cell.setDestination(-1, -1);
-            }
-        }
-    }
-}
 
     // ── Simulation step ───────────────────────────────────────────────────────
 
@@ -174,15 +132,13 @@ public class Grid implements Serializable {
      *
      * <p>The update is performed on a copy of the grid to avoid order-dependent
      * artefacts (all cells read the previous generation).</p>
-     *
-     * @param step the current simulation step number (used to determine week/weekend)
      */
-    public void step(int step) {
+    public void step() {
         // Deep-copy current grid as the read-source
         Cell[][] next = deepCopy(cells);
 
         // --- Phase 1: movement ---
-        movePhase(next, step);
+        movePhase(next);
 
         // --- Phase 2: infection spread ---
         infectionPhase(next);
@@ -193,92 +149,74 @@ public class Grid implements Serializable {
         cells = next;
     }
 
-    /**
-     * Determines whether the given step number corresponds to a weekend day.
-     * Assumes step 0 = Monday, 1 = Tuesday, ..., 5 = Saturday, 6 = Sunday.
-     *
-     * @param step simulation step count
-     * @return true if Saturday or Sunday
-     */
-    private boolean isWeekend(int step) {
-        int dayOfWeek = step % 7;
-        return dayOfWeek == 5 || dayOfWeek == 6;
-    }
+    public void movePhase(Cell[][] nextCells) {
+        List<int[]> coords = shuffledCoords();
 
-    /**
-     * Phase 1 – movement: each alive cell may move to a random adjacent empty cell.
-     * Movement probability is increased by 50% on weekdays, decreased by 30% on weekends.
-     *
-     * @param next the future grid (copy) to write movements into
-     * @param step current simulation step (for weekday/weekend check)
-     */
-   private void movePhase(Cell[][] next, int step) {
-    boolean weekend = isWeekend(step);
-    List<int[]> coords = shuffledCoords();
+        for (int[] coord : coords) {
+            int r = coord[0];
+            int c = coord[1];
+            
+            Cell currentAgent = cells[r][c];
 
-    for (int[] coord : coords) {
-        int r = coord[0];
-        int c = coord[1];
-        Cell currentAgent = cells[r][c];
-        if (!currentAgent.isAlive()) continue;
+            if (currentAgent.getState() == CellState.EMPTY || currentAgent.getState() == CellState.DEAD) {
+                continue;
+            }
 
-        double prob = currentAgent.getMoveProbability();
-        if (weekend) {
-            // Weekends: less frequent travel
-            prob = Math.min(1.0, prob * 0.3);
-        }
-        if (rng.nextDouble() >= prob) continue;
+            if (rng.nextDouble() < currentAgent.getMoveProbability()) {
+                List<int[]> neighbors = new ArrayList<>();
+                for (int rd = -1; rd <= 1; rd++) {
+                    for (int cd = -1; cd <= 1; cd++) {
+                        if (rd == 0 && cd == 0) continue;
 
-        // Building the neighbours
-        List<int[]> neighbors = new ArrayList<>();
-        for (int rd = -1; rd <= 1; rd++) {
-            for (int cd = -1; cd <= 1; cd++) {
-                if (rd == 0 && cd == 0) continue;
-                int nr = r + rd;
-                int nc = c + cd;
-                if (toroidal) {
-                    nr = wrap(nr, height);
-                    nc = wrap(nc, width);
-                    neighbors.add(new int[]{nr, nc});
-                } else {
-                    if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-                        neighbors.add(new int[]{nr, nc});
+                        int nr = r + rd;
+                        int nc = c + cd;
+
+                        if (toroidal) {
+                            nr = wrap(nr, height);
+                            nc = wrap(nc, width);
+                            neighbors.add(new int[]{nr, nc});
+                        } else {
+                            if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
+                                neighbors.add(new int[]{nr, nc});
+                            }
+                        }
+                    }
+                }
+                
+                // Mélange des directions pour un déplacement aléatoire
+                Collections.shuffle(neighbors, rng);
+
+                // 4. Tentative de déplacement
+                for (int[] nextCoord : neighbors) {
+                    int nextR = nextCoord[0];
+                    int nextC = nextCoord[1];
+
+                    // On vérifie si la case est libre dans la grille FUTURE (nextCells)
+                    if (nextCells[nextR][nextC].getState() == CellState.EMPTY) {
+                        
+                        Cell futureSource = nextCells[r][c];
+                        Cell futureTarget = nextCells[nextR][nextC];
+
+                        // On transfère les attributs de la PERSONNE vers sa nouvelle cellule
+                        futureTarget.setState(currentAgent.getState());
+                        futureTarget.setStateAge(currentAgent.getStateAge());
+                        futureTarget.setResistance(currentAgent.getResistance());
+                        futureTarget.setMoveProbability(currentAgent.getMoveProbability());
+                        futureTarget.setMasked(currentAgent.isMasked());
+
+                        // L'ancienne cellule redevient VIDE
+                        futureSource.setState(CellState.EMPTY);
+                        futureSource.setStateAge(0);
+                        futureSource.setResistance(0);
+                        futureSource.setMoveProbability(0);
+                        futureSource.setMasked(false);
+
+                        // Note magique : futureSource.zoneType et futureTarget.zoneType ne sont pas modifiés.
+                        // Donc le type de zone (Route, commerce...) reste ancré au sol.
+                        break; 
                     }
                 }
             }
-        }
-
-        // Filter out empty neighbours in the next grid
-        List<int[]> emptyNeighbors = new ArrayList<>();
-        for (int[] nb : neighbors) {
-            int nr = nb[0], nc = nb[1];
-            if (next[nr][nc].getState() == CellState.EMPTY) {
-                emptyNeighbors.add(nb);
-            }
-        }
-        if (emptyNeighbors.isEmpty()) continue;
-
-        int[] chosen;
-        if (!weekend && currentAgent.hasDestination()) {
-           
-            int targetRow = currentAgent.getDestRow();
-            int targetCol = currentAgent.getDestCol();
-            int bestDist = Integer.MAX_VALUE;
-            List<int[]> best = new ArrayList<>();
-            for (int[] nb : emptyNeighbors) {
-                int d = Math.abs(nb[0] - targetRow) + Math.abs(nb[1] - targetCol);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best.clear();
-                    best.add(nb);
-                } else if (d == bestDist) {
-                    best.add(nb);
-                }
-            }
-            chosen = best.get(rng.nextInt(best.size()));
-        } else {
-            // Weekend or no destination: random
-            chosen = emptyNeighbors.get(rng.nextInt(emptyNeighbors.size()));
         }
 
         // Execute the move
@@ -298,7 +236,6 @@ public class Grid implements Serializable {
         futureSource.setMoveProbability(0);
         futureSource.setMasked(false);
     }
-}
 
     /**
      * Phase 2 – infected (and optionally exposed) cells try to transmit to
@@ -315,6 +252,17 @@ public class Grid implements Serializable {
      *   <li><b>Inward</b>: if the target is MASKED, the effective probability is
      *       further multiplied by (1 − maskInwardEfficacy).</li>
      * </ul>
+     *
+     * <h3>Distance attenuation (airborne only)</h3>
+     * <p>For airborne diseases, the probability decreases with the Euclidean
+     * distance between the spreader and the target: {@code baseRate} is divided
+     * by {@code distance * disease.getAirborneAttenuationFactor()}, so a
+     * neighbour at distance 1 (with the default factor of 1.0) receives the
+     * full rate while a target near the edge of {@code transmissionRadius}
+     * receives only a fraction of it (e.g. 1/3 of the base rate at distance 3
+     * for a radius-3 disease). The attenuation factor lets a disease fall off
+     * faster (&gt; 1.0) or slower (&lt; 1.0) with distance. Contact-mode
+     * diseases (radius 1) are unaffected.</p>
      *
      * @param grid the working copy of the grid
      */
@@ -345,6 +293,7 @@ public class Grid implements Serializable {
                     spreadRate[r][c] *= (1.0 - disease.getMaskOutwardEfficacy());
 
         int radius = disease.isAirborne() ? disease.getTransmissionRadius() : 1;
+        int radiusSquared = radius * radius;
 
         for (int r = 0; r < height; r++) {
             for (int c = 0; c < width; c++) {
@@ -353,24 +302,40 @@ public class Grid implements Serializable {
                 for (int dr = -radius; dr <= radius; dr++) {
                     for (int dc = -radius; dc <= radius; dc++) {
                         if (dr == 0 && dc == 0) continue;
-                        if (disease.isAirborne() && Math.sqrt(dr * dr + dc * dc) > radius) continue;
+
+                        // Compare squared distances first to avoid a sqrt on
+                        // every candidate cell; only cells within the radius
+                        // need the real (rooted) distance later on.
+                        int distanceSquared = dr * dr + dc * dc;
+                        if (disease.isAirborne() && distanceSquared > radiusSquared) continue;
 
                         int nr = r + dr;
                         int nc = c + dc;
-                        if (toroidal) {
-                            nr = wrap(nr, height);
-                            nc = wrap(nc, width);
-                        } else if (!inBounds(nr, nc)) continue;
+                        if (toroidal) { nr = wrap(nr, height); nc = wrap(nc, width); }
+                        else if (!inBounds(nr, nc)) continue;
 
                         Cell target = grid[nr][nc];
                         CellState tst = target.getState();
 
                         // Only susceptible, vaccinated, and masked-healthy can be exposed
                         if (tst != CellState.SUSCEPTIBLE
-                                && tst != CellState.VACCINATED) continue;
+                         && tst != CellState.VACCINATED) continue;
 
                         // Base probability
                         double baseRate = spreadRate[r][c];
+
+                        // Distance attenuation: airborne transmission grows
+                        // weaker the farther the target is from the source
+                        // (inverse-distance falloff, distance >= 1), scaled by
+                        // the disease's airborneAttenuationFactor. Guard against
+                        // a zero distance or zero/negative factor to avoid
+                        // dividing by zero.
+                        if (disease.isAirborne()) {
+                            double distance = Math.sqrt(distanceSquared);
+                            double attenuation = distance * disease.getAirborneAttenuationFactor();
+                            if (attenuation > 0)
+                                baseRate /= attenuation;
+                        }
 
                         // Vaccine inward protection
                         if (tst == CellState.VACCINATED)
@@ -434,9 +399,9 @@ public class Grid implements Serializable {
                             cell.resetStateAge();
                         }
                     }
+                    // MASKED stays masked indefinitely (user-controlled)
                     // EMPTY, DEAD, SUSCEPTIBLE – no progression
-                    default -> {
-                    }
+                    default -> { }
                 }
             }
         }
@@ -473,33 +438,17 @@ public class Grid implements Serializable {
 
     // ── Accessors ─────────────────────────────────────────────────────────────
 
-    /**
-     * @return grid width (columns)
-     */
-    public int getWidth() {
-        return width;
-    }
+    /** @return grid width (columns) */
+    public int getWidth() { return width; }
 
-    /**
-     * @return grid height (rows)
-     */
-    public int getHeight() {
-        return height;
-    }
+    /** @return grid height (rows) */
+    public int getHeight() { return height; }
 
-    /**
-     * @return true if toroidal topology is active
-     */
-    public boolean isToroidal() {
-        return toroidal;
-    }
+    /** @return true if toroidal topology is active */
+    public boolean isToroidal() { return toroidal; }
 
-    /**
-     * @param toroidal true to enable toroidal mode
-     */
-    public void setToroidal(boolean toroidal) {
-        this.toroidal = toroidal;
-    }
+    /** @param toroidal true to enable toroidal mode */
+    public void setToroidal(boolean toroidal) { this.toroidal = toroidal; }
 
     /**
      * Returns the cell at the given position.
@@ -513,19 +462,11 @@ public class Grid implements Serializable {
         return cells[row][col];
     }
 
-    /**
-     * @return the disease currently configured for this grid
-     */
-    public Disease getDisease() {
-        return disease;
-    }
+    /** @return the disease currently configured for this grid */
+    public Disease getDisease() { return disease; }
 
-    /**
-     * @param disease new disease to apply
-     */
-    public void setDisease(Disease disease) {
-        this.disease = disease;
-    }
+    /** @param disease new disease to apply */
+    public void setDisease(Disease disease) { this.disease = disease; }
 
     // ── Utility ───────────────────────────────────────────────────────────────
 
@@ -588,4 +529,3 @@ public class Grid implements Serializable {
                 cells[r][c] = new Cell();
     }
 }
-
