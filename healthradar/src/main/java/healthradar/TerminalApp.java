@@ -122,7 +122,7 @@ public class TerminalApp {
             option("0", "Quit");
             rule();
             switch (prompt()) {
-                case "1" -> { initSimulation(); simulationLoop(); }
+                case "1" -> { if (!gridReady) initSimulation(); simulationLoop(); }
                 case "2" -> configureGrid();
                 case "3" -> configureDisease();
                 case "4" -> configurePopulation();
