@@ -35,6 +35,25 @@ public class TerminalApp {
     private static final String BG_RECOVERED   = "\u001B[48;5;34m";
     private static final String BG_DEAD        = "\u001B[48;5;240m";
 
+    // Zone indicator characters appended after the state char (3rd char of each cell)
+    // Shown in bold so they stand out against the state background colour.
+    // Format per cell: " X Z"  where X=state letter, Z=zone indicator (or space/mask)
+    private static final String BOLD_ON  = "\u001B[1m";
+    private static final String BOLD_OFF = "\u001B[22m";
+
+    /** One-char indicator for each zone type (shown as 3rd char of cell). */
+    private static String zoneChar(healthradar.model.ZoneType z) {
+        return switch (z) {
+            case RESIDENTIAL -> "r";
+            case WORK        -> "w";
+            case COMMERCIAL  -> "c";
+            case EDUCATION   -> "e";
+            case HEALTHCARE  -> "h";
+            case TRANSPORT   -> "T";   // uppercase = high risk
+            case EMPTY_SPACE -> " ";
+        };
+    }
+
     private static final String FG_CYAN   = "\u001B[38;5;51m";
     private static final String FG_ORANGE = "\u001B[38;5;214m";
     private static final String FG_GREY   = "\u001B[38;5;244m";
@@ -322,16 +341,29 @@ public class TerminalApp {
 
     /** Prints the grid and the statistics block. */
     private void printGridAndStats() {
-        System.out.print("  +" + "--".repeat(gridWidth) + "+\n");
+        // Each cell renders as 3 characters: state-bg + " X" + indicator + RESET
+        //   indicator = "m" if masked (any state), else zone char (r/w/c/e/h/T/ )
+        //   Use "--" border for 2-char mode, "---" for 3-char mode
+        System.out.print("  +" + "---".repeat(gridWidth) + "+\n");
         for (int r = 0; r < gridHeight; r++) {
             System.out.print("  |");
-            for (int c = 0; c < gridWidth; c++) {
-                CellState st = grid.getCell(r, c).getState();
-                System.out.print(cellBg(st) + cellCh(st) + RESET);
+            for (int cc = 0; cc < gridWidth; cc++) {
+                healthradar.model.Cell cell = grid.getCell(r, cc);
+                CellState st   = cell.getState();
+                String indicator;
+                if (cell.isMasked() && cell.isAlive()) {
+                    // masked: show "m" in bright white bold
+                    indicator = BOLD_ON + "\u001B[97mm" + BOLD_OFF;
+                } else {
+                    // show zone char (dim so it doesn't overwhelm state colour)
+                    String zc = zoneChar(cell.getZoneType());
+                    indicator = zc.equals(" ") ? " " : DIM + zc + RESET + cellBg(st);
+                }
+                System.out.print(cellBg(st) + cellCh(st) + indicator + RESET);
             }
             System.out.println("|");
         }
-        System.out.print("  +" + "--".repeat(gridWidth) + "+\n\n");
+        System.out.print("  +" + "---".repeat(gridWidth) + "+\n\n");
 
         SimulationEngine.StepStats s = engine.latestStats();
         if (s == null) return;
@@ -349,7 +381,7 @@ public class TerminalApp {
         statLine("Recovered  ", BG_RECOVERED,    s.recovered(),   total);
         statLine("Dead       ", BG_DEAD,          s.dead(),       total);
 
-        int bw = gridWidth * 2;
+        int bw = gridWidth * 3;   // 3 chars per cell
         System.out.print("  ");
         int[] counts = {s.susceptible(), s.vaccinated(), s.exposed(), s.infected(), s.recovered(), s.dead()};
         String[] bgs  = {BG_SUSCEPTIBLE, BG_VACCINATED, BG_EXPOSED, BG_INFECTED, BG_RECOVERED, BG_DEAD};
@@ -665,7 +697,7 @@ public class TerminalApp {
         System.out.println();
         System.out.print("  Save file path  (default=simulation.hrs): ");
         String path = readLine();
-        if (path.isEmpty()) path = "simulation.hrs";
+        if (path.isEmpty()) path = "save/simulation.hrs";
         try {
             SimulationSerializer.save(engine, Paths.get(path));
             ok("Saved to " + path);
@@ -673,21 +705,68 @@ public class TerminalApp {
         waitEnter();
     }
 
-    /** Loads an engine from a .hrs file. */
+    /**
+     * Loads a simulation from a .hrs file.
+     *
+     * <p><b>Working directory:</b> files are resolved relative to the directory
+     * from which the JAR is launched (i.e. {@code System.getProperty("user.dir")}).
+     * If you run {@code java -jar HealthRadar-Terminal.jar} from {@code ~/healthradar/},
+     * then {@code simulation.hrs} resolves to {@code ~/healthradar/simulation.hrs}.</p>
+     *
+     * <p>Tip: place your .hrs files next to the JAR and just type the filename.</p>
+     */
     private void loadSimulation() {
         System.out.println();
-        System.out.print("  Load file path  (default=simulation.hrs): ");
-        String path = readLine();
-        if (path.isEmpty()) path = "simulation.hrs";
+        // List .hrs files in the current working directory
+        java.io.File cwd = new java.io.File(System.getProperty("user.dir"), "save");
+        java.io.File[] hrs = cwd.listFiles(
+                (dir, name) -> name.toLowerCase().endsWith(".hrs"));
+        if (hrs != null && hrs.length > 0) {
+            java.util.Arrays.sort(hrs, java.util.Comparator.comparing(java.io.File::getName));
+            System.out.println("  " + FG_CYAN + "Available .hrs files in "
+                    + cwd.getAbsolutePath() + ":" + RESET);
+            for (int i = 0; i < hrs.length; i++) {
+                System.out.printf("    %s[%d]%s  %s%n",
+                        FG_YELLOW, i + 1, RESET, hrs[i].getName());
+            }
+            System.out.println("  (type a number to select, or type a full path)");
+        } else {
+            System.out.println("  " + FG_GREY + "No .hrs files found in "
+                    + cwd.getAbsolutePath() + RESET);
+        }
+        System.out.println();
+        System.out.print("  Load file  (default=simulation.hrs): ");
+        String input = readLine().trim();
+
+        // Resolve input: number → filename from list, else use as path
+        String path;
+        if (hrs != null && !input.isEmpty()) {
+            try {
+                int idx = Integer.parseInt(input) - 1;
+                if (idx >= 0 && idx < hrs.length) {
+                    path = hrs[idx].getAbsolutePath();
+                } else {
+                    error("Index out of range."); waitEnter(); return;
+                }
+            } catch (NumberFormatException e) {
+                path = input;
+            }
+        } else {
+            path = input.isEmpty() ? "simulation.hrs" : input;
+        }
+
         try {
-            engine     = SimulationSerializer.load(Paths.get(path));
-            grid       = engine.getGrid();
-            disease    = grid.getDisease();
+            engine    = SimulationSerializer.load(Paths.get(path));
+            grid      = engine.getGrid();
+            disease   = grid.getDisease();
             gridWidth  = grid.getWidth();
             gridHeight = grid.getHeight();
             toroidal   = grid.isToroidal();
             gridReady = true;
-            ok("Loaded " + path + "  (step " + engine.getStepCount() + ")");
+            ok("Loaded: " + path);
+            ok("  Grid " + gridWidth + "×" + gridHeight
+                    + "  |  Step " + engine.getStepCount()
+                    + "  |  Disease: " + disease.getName());
         } catch (IOException e) { error("Load failed: " + e.getMessage()); }
         waitEnter();
     }

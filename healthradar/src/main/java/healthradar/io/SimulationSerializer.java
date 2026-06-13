@@ -76,13 +76,18 @@ public class SimulationSerializer {
         sb.append("    \"maskOutwardEfficacy\": ").append(disease.getMaskOutwardEfficacy()).append("\n");
         sb.append("  },\n");
 
-        // Cells (only non-EMPTY cells to keep file compact)
+        // Cells: save non-EMPTY cells AND empty cells that carry a zone.
+        // zoneType is always saved so the spatial layout is fully preserved.
         sb.append("  \"cells\": [\n");
         boolean firstCell = true;
         for (int r = 0; r < grid.getHeight(); r++) {
             for (int c = 0; c < grid.getWidth(); c++) {
                 Cell cell = grid.getCell(r, c);
-                if (cell.getState() == CellState.EMPTY && !cell.isMasked()) continue;
+                boolean isEmpty   = cell.getState() == CellState.EMPTY;
+                boolean hasZone   = cell.getZoneType() != healthradar.model.ZoneType.EMPTY_SPACE;
+                boolean hasMask   = cell.isMasked();
+                // Skip truly blank cells (empty + no zone + no mask)
+                if (isEmpty && !hasZone && !hasMask) continue;
                 if (!firstCell) sb.append(",\n");
                 firstCell = false;
                 sb.append("    {\"r\":").append(r)
@@ -92,6 +97,7 @@ public class SimulationSerializer {
                   .append(",\"resistance\":").append(round6(cell.getResistance()))
                   .append(",\"moveProbability\":").append(round6(cell.getMoveProbability()))
                   .append(",\"masked\":").append(cell.isMasked())
+                  .append(",\"zoneType\":").append(jsonStr(cell.getZoneType().name()))
                   .append("}");
             }
         }
@@ -201,17 +207,29 @@ public class SimulationSerializer {
                 CellState state;
                 try { state = CellState.valueOf(stateName); }
                 catch (IllegalArgumentException e) { state = CellState.SUSCEPTIBLE; }
-                grid.setCell(r, c, state);
-                Cell cell = grid.getCell(r, c);
-                if (cell != null && state != CellState.EMPTY) {
-                    cell.resetStateAge();
-                    // restore stateAge via reflection-free approach:
-                    // increment manually
-                    int age = co.intVal("stateAge", 0);
-                    for (int i = 0; i < age; i++) cell.incrementStateAge();
-                    cell.setResistance(co.dblVal("resistance", 0.20));
-                    cell.setMoveProbability(co.dblVal("moveProbability", 0.25));
-                    cell.setMasked(co.boolVal("masked", false));
+                // Restore zone first (applies to EMPTY cells too)
+                String zoneName = co.strVal("zoneType", "EMPTY_SPACE");
+                healthradar.model.ZoneType zone;
+                try { zone = healthradar.model.ZoneType.valueOf(zoneName); }
+                catch (IllegalArgumentException e2) {
+                    zone = healthradar.model.ZoneType.EMPTY_SPACE;
+                }
+
+                if (state == CellState.EMPTY) {
+                    // Empty cell: just set its zone (no population data to restore)
+                    grid.getCell(r, c).setZoneType(zone);
+                } else {
+                    grid.setCell(r, c, state);
+                    Cell cell = grid.getCell(r, c);
+                    if (cell != null) {
+                        cell.resetStateAge();
+                        int age = co.intVal("stateAge", 0);
+                        for (int i = 0; i < age; i++) cell.incrementStateAge();
+                        cell.setResistance(co.dblVal("resistance", 0.20));
+                        cell.setMoveProbability(co.dblVal("moveProbability", 0.25));
+                        cell.setMasked(co.boolVal("masked", false));
+                        cell.setZoneType(zone);
+                    }
                 }
             }
         }
