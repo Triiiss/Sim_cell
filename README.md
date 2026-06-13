@@ -2,10 +2,11 @@
 
 HealthRadar is a Java / JavaFX project for the ING1-GI PGL 2D cells assignment.
 
-The project simulates disease propagation on a configurable 2D grid. Each grid
-slot can be empty or contain one simulated person. People move, become exposed,
-infected, recovered, vaccinated, or dead according to probabilistic rules.
-Urban zone types can change local transmission risk.
+The project simulates disease propagation on a configurable 2D grid using a
+stochastic cellular automaton. Each grid slot is either empty or contains one
+simulated person. People move, become exposed, infected, recovered, vaccinated,
+or dead according to probabilistic epidemiological rules derived from the SVEIRD
+model. Urban zone types modify local transmission risk.
 
 ## Assignment Scope
 
@@ -19,148 +20,212 @@ For HealthRadar, the chosen context is disease propagation in a city:
 - each non-empty cell represents one person on that map;
 - disease transmission depends on nearby cells, disease parameters,
   protection, movement, and zone risk;
-- the user can edit the grid and observe live statistics.
+- the user can edit the grid, paint urban zones, and observe live statistics.
 
-## Current Features
+## Features
 
-- JavaFX graphical application.
-- Command-line application for testing the model without the GUI.
-- Configurable grid dimensions.
-- Bounded or toroidal topology.
-- Cell states:
-  - `EMPTY`
-  - `SUSCEPTIBLE`
-  - `VACCINATED`
-  - `EXPOSED`
-  - `INFECTED`
-  - `RECOVERED`
-  - `DEAD`
-- Disease parameters:
-  - transmission rate;
-  - contact or airborne transmission;
-  - airborne radius;
-  - incubation period;
-  - infection duration;
-  - mortality rate;
-  - temporary immunity;
-  - pre-symptomatic contagion;
-  - vaccine and mask efficacy.
-- Random population insertion.
-- Brush, rectangular zone, and individual edit modes.
-- Person movement between neighboring empty cells.
-- Infection by contact or proximity.
-- Zone types with transmission multipliers:
-  - residential;
-  - work;
-  - commercial;
-  - education;
-  - healthcare;
-  - transport;
-  - empty space.
-- Simulation controls:
-  - play;
-  - pause;
-  - step;
-  - reset;
-  - step-delay control from 50 ms to 10 seconds.
-- Live statistics and chart display.
-- Export of statistics charts to PNG.
-- Binary save/load of simulation state in `.hrs` files.
+### Epidemiological model (SVEIRD)
+
+Cell states:
+
+- `EMPTY` — no person
+- `SUSCEPTIBLE` — healthy, can be infected
+- `VACCINATED` — protected, reduced infection probability with waning immunity
+- `EXPOSED` — incubating, not yet contagious (optionally pre-symptomatic)
+- `INFECTED` — contagious
+- `RECOVERED` — temporarily immune
+- `DEAD` — no longer active
+
+Disease parameters:
+
+- transmission rate
+- contact or airborne transmission mode
+- airborne radius with **distance attenuation** (probability decreases as
+  `baseRate / (distance × attenuationFactor)`)
+- incubation period
+- infection duration
+- mortality rate
+- temporary immunity duration
+- pre-symptomatic contagion (EXPOSED cells can transmit at reduced rate)
+- vaccine efficacy and vaccine immunity duration (waning immunity)
+- mask inward and outward efficacy
+
+### Urban zone layer
+
+Each cell independently carries a zone type that multiplies the local
+transmission rate:
+
+| Zone | Multiplier |
+|---|---|
+| Residential | ×1.0 (reference) |
+| Work | ×1.4 |
+| Commercial | ×1.2 |
+| Education | ×1.5 |
+| Healthcare | ×1.8 |
+| Transport | ×2.2 |
+| Empty space | ×1.0 (neutral) |
+
+### JavaFX graphical application
+
+- Scrollable grid canvas with configurable cell size.
+- Left rail with edit modes: **Brush**, **Fill rectangle**, **Single cell**,
+  **Zone layer**, **Inspect** (click a cell to read its data without modifying it).
+- Mask paint mode: toggle mask flag on any cell independently of its state.
+- Right panel with live statistics (counts, percentage bar, time-series chart).
+- Cell inspector: position, state, zone, state age, resistance, movement
+  probability, mask status, zone risk multiplier.
+- Settings dialog with two apply modes:
+  - **Apply** — applies disease and display parameters without resetting the grid.
+  - **Apply & Restart** — resets and repopulates the grid.
+- Disease library: save and load custom disease configurations (CSV, upsert by name).
+- Export statistics chart to PNG (1200 × 700 px, no external dependency).
+
+### Terminal application
+
+- Full simulation without JavaFX.
+- ANSI 256-colour rendering: each cell displays **3 characters**
+  (state letter + mask indicator `m` or zone character `r/w/c/e/h/T`).
+- Interactive grid editor: place, remove, fill rectangles, vaccinate all,
+  toggle mask, save layout.
+- Step-by-step mode (`p` opens pause menu inline, `q` returns to auto-play).
+- Load dialog lists all `.hrs` files found in the `save/` subdirectory;
+  files can be selected by number.
+- Watcher thread detects ENTER during auto-play without blocking simulation.
+
+### Save / load
+
+- `.hrs` files use a **JSON text format** (no external library).
+- The full simulation state is preserved: grid dimensions, topology, disease
+  parameters, each cell's state, state age, resistance, movement probability,
+  mask flag, and **zone type**.
+- Empty cells that carry a zone are also saved so the spatial zone layout is
+  fully restored on load.
+- Backward-compatible: missing fields fall back to sensible defaults so older
+  `.hrs` files remain loadable.
+
+### Simulation controls
+
+- Play / Pause / Step / Reset.
+- Step delay from 50 ms to 10 s.
+- Toroidal or bounded grid topology (switchable at runtime).
+- Random populate with configurable susceptible and infected counts.
+- Clear grid.
 
 ## Project Structure
 
-```text
-.
-├── pom.xml
-├── healthradar/
-│   ├── src/main/java/healthradar/
-│   │   ├── App.java
-│   │   ├── Launcher.java
-│   │   ├── TerminalApp.java
-│   │   ├── controller/
-│   │   ├── io/
-│   │   ├── model/
-│   │   └── view/
-│   ├── Makefile
-│   └── generate_doc.py
-└── README.md
 ```
-
-`Launcher` is the recommended JavaFX entry point for IDEs and Maven.
+.
+├── README.md
+└── healthradar/
+    ├── Makefile
+    ├── MANIFEST.MF
+    ├── MANIFEST-Terminal.MF
+    ├── src/main/java/healthradar/
+    │   ├── App.java               — JavaFX entry point
+    │   ├── Launcher.java          — alternate entry point for IDEs / Maven
+    │   ├── TerminalApp.java       — standalone terminal application
+    │   ├── controller/
+    │   │   └── MainController.java
+    │   ├── model/
+    │   │   ├── Cell.java
+    │   │   ├── CellState.java
+    │   │   ├── Disease.java
+    │   │   ├── Grid.java
+    │   │   ├── SimulationEngine.java
+    │   │   └── ZoneType.java
+    │   ├── view/
+    │   │   ├── ConfigPanel.java
+    │   │   ├── EditMode.java
+    │   │   ├── GridView.java
+    │   │   └── StatsPanel.java
+    │   └── io/
+    │       ├── ChartExporter.java
+    │       ├── DiseaseLibrary.java
+    │       └── SimulationSerializer.java
+    └── src/main/resources/healthradar/
+        └── app.css
+```
 
 ## Requirements
 
-- JDK 17 or later.
-- Maven.
+- JDK 17 or later (JDK 21 recommended).
+- **Linux / macOS (Makefile):** OpenJFX installed system-wide.
+- **Windows / all platforms (Maven):** Maven resolves JavaFX automatically.
 
-The project is configured with Maven so JavaFX dependencies are resolved from
-the Maven repository.
+## Run with the Makefile (Linux / macOS)
 
-## Run With Maven
+Install OpenJFX if needed:
+
+```bash
+sudo apt install openjfx        # Debian / Ubuntu / Mint
+```
+
+From the `healthradar/` directory:
+
+```bash
+# Compile + run the JavaFX application
+make run
+
+# Compile + run the terminal application
+make run-terminal
+
+# Build JARs only
+make jar
+make jar-terminal
+
+# Generate JavaDoc
+make doc
+
+# Clean build artefacts
+make clean
+```
+
+If JavaFX is installed in a non-standard location, override the path:
+
+```bash
+export JAVAFX_LIB=/path/to/javafx-sdk/lib
+make run
+```
+
+## Run with Maven (Windows / cross-platform)
 
 From the repository root:
 
 ```bash
 mvn clean compile
-```
 
-Run the JavaFX application:
-
-```bash
+# JavaFX application
 mvn javafx:run
-```
 
-Run the command-line version:
-
-```bash
+# Terminal application
 mvn clean compile
 java -cp target/classes healthradar.TerminalApp
-```
 
-Package the project:
-
-```bash
+# Package
 mvn clean package
 ```
 
 ## IntelliJ Setup
 
-Open the repository root, not the `healthradar` subfolder:
+Open the repository root (not the `healthradar/` subfolder). Reload Maven,
+then run:
 
-```text
-C:\Users\khayem\IdeaProjects\Sim_cell
 ```
-
-Then reload Maven and run:
-
-```text
 healthradar.Launcher
 ```
 
-## Notes About the Makefile
+## Save Files
 
-The Makefile was written for a Linux OpenJFX installation and assumes:
+`.hrs` files are JSON text snapshots of the full simulation state. Place them
+in a `scenario/` subdirectory next to the JAR so the terminal loader lists them
+automatically. The JavaFX application uses a file chooser and accepts any path.
 
-```text
-/usr/share/openjfx/lib
-```
+Scenario files demonstrating herd immunity, social distancing, disease waves,
+and urban zone effects are provided separately.
 
-On Windows, Maven is the safer way to compile and run the project because it
-declares JavaFX as a normal dependency.
+## Known Limitations
 
-## Save Format
-
-New `.hrs` files are binary Java-serialized simulation snapshots, matching the
-assignment requirement for binary persistence. The loader also keeps a fallback
-for older JSON `.hrs` files created by previous development versions.
-
-## Known Gaps
-
-These points still need cleanup before final delivery:
-
-- README and report must stay aligned with the final implementation.
-- Generated Javadoc should be committed before delivery.
-- Some statistics requested by the assignment, such as progression trends and
-  property statistics, are still basic.
-- The team must be able to compile and launch the project from the command
-  line during the defense.
+- The Makefile assumes a Linux OpenJFX installation. Use Maven on Windows.
+- JavaDoc should be generated and committed before the final defence.
+- The team must be able to compile and run the project from the command line
+  during the defence.
