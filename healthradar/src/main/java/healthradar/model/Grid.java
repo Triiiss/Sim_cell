@@ -183,44 +183,33 @@ public class Grid implements Serializable {
                     }
                 }
                 
-                // Mélange des directions pour un déplacement aléatoire
                 Collections.shuffle(neighbors, rng);
 
-                // 4. Tentative de déplacement
                 for (int[] nextCoord : neighbors) {
                     int nextR = nextCoord[0];
                     int nextC = nextCoord[1];
 
-                    // On vérifie si la case est libre dans la grille FUTURE (nextCells)
                     if (nextCells[nextR][nextC].getState() == CellState.EMPTY) {
                         
                         Cell futureSource = nextCells[r][c];
                         Cell futureTarget = nextCells[nextR][nextC];
 
-                        // On transfère les attributs de la PERSONNE vers sa nouvelle cellule
                         futureTarget.setState(currentAgent.getState());
                         futureTarget.setStateAge(currentAgent.getStateAge());
                         futureTarget.setResistance(currentAgent.getResistance());
                         futureTarget.setMoveProbability(currentAgent.getMoveProbability());
                         futureTarget.setMasked(currentAgent.isMasked());
 
-                        // L'ancienne cellule redevient VIDE
                         futureSource.setState(CellState.EMPTY);
                         futureSource.setStateAge(0);
                         futureSource.setResistance(0);
                         futureSource.setMoveProbability(0);
                         futureSource.setMasked(false);
-
-                        // Note magique : futureSource.zoneType et futureTarget.zoneType ne sont pas modifiés.
-                        // Donc le type de zone (Route, commerce...) reste ancré au sol.
                         break; 
                     }
                 }
             }
         }
-
-        // 5. On applique la grille future
-        this.cells = nextCells;
     }
 
     /**
