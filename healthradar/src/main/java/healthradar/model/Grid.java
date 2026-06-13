@@ -316,6 +316,14 @@ public class Grid implements Serializable {
      *       further multiplied by (1 − maskInwardEfficacy).</li>
      * </ul>
      *
+     * <h3>Distance attenuation (airborne only)</h3>
+     * <p>For airborne diseases, the probability decreases with the Euclidean
+     * distance between the spreader and the target: {@code baseRate} is divided
+     * by that distance, so a neighbour at distance 1 receives the full rate
+     * while a target near the edge of {@code transmissionRadius} receives only
+     * a fraction of it (e.g. 1/3 of the base rate at distance 3 for a
+     * radius-3 disease). Contact-mode diseases (radius 1) are unaffected.</p>
+     *
      * @param grid the working copy of the grid
      */
     private void infectionPhase(Cell[][] grid) {
@@ -353,7 +361,9 @@ public class Grid implements Serializable {
                 for (int dr = -radius; dr <= radius; dr++) {
                     for (int dc = -radius; dc <= radius; dc++) {
                         if (dr == 0 && dc == 0) continue;
-                        if (disease.isAirborne() && Math.sqrt(dr * dr + dc * dc) > radius) continue;
+
+                        double distance = Math.sqrt(dr * dr + dc * dc);
+                        if (disease.isAirborne() && distance > radius) continue;
 
                         int nr = r + dr;
                         int nc = c + dc;
@@ -371,6 +381,12 @@ public class Grid implements Serializable {
 
                         // Base probability
                         double baseRate = spreadRate[r][c];
+
+                        // Distance attenuation: airborne transmission grows
+                        // weaker the farther the target is from the source
+                        // (inverse-distance falloff, distance >= 1).
+                        if (disease.isAirborne())
+                            baseRate /= distance;
 
                         // Vaccine inward protection
                         if (tst == CellState.VACCINATED)
